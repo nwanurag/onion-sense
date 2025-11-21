@@ -85,5 +85,5 @@ pydantic==2.6.1
 psycopg2-binary
 tokenizers==0.13.3
 transformers==4.36.2
-
+gevent==22.10.2
 

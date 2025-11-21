@@ -1,0 +1,4741 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>City Sensor Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.min.js"></script>
+  <!-- Add this in <head> if not already -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1"></script>
+  <script src="https://cdn.canvasjs.com/canvasjs.min.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- SweetAlert2 CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+  <!-- SweetAlert2 JS -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <style>
+    body {
+      width: 100%;
+  margin: auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+  background-color: #f0f2f5;
+}
+
+.sidebar {
+  width: 250px;
+  background-color: #2c3e50;
+  color: #ecf0f1;
+  height: 100vh;
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+     .sidebar h2 {
+       padding: 20px;
+       margin: 0;
+       background-color: #1abc9c;
+       text-align: center;
+       font-size: 22px;
+       border-bottom-left-radius: 12px;
+       border-bottom-right-radius: 12px;
+     }
+
+     .sidebar ul {
+       list-style: none;
+       padding: 0;
+       margin: 0;
+     }
+
+     .sidebar ul li {
+       padding: 15px 20px;
+       cursor: pointer;
+       border-radius: 25px;
+       margin: 5px 10px;
+       display: flex;
+       align-items: center;
+       transition: all 0.3s ease;
+     }
+
+     .sidebar ul li:hover {
+       background-color: #16a085;
+       transform: translateX(5px);
+     }
+
+     .sidebar ul li.active {
+       background-color: #16a085;
+       color: #fff;
+       font-weight: bold;
+       box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+     }
+
+     .sidebar ul li.active::before {
+        content: '';
+        width: 10px;
+        height: 10px;
+        background-color: #fff;
+        border-radius: 50%;
+        margin-right: 10px;
+     }
+     .logout-item ul li {
+        background-color: #e74c3c;
+        margin: 10px;
+        text-align: center;
+     }
+
+     .logout-item ul li:hover {
+        background-color: #c0392b;
+        transform: translateX(0);
+     }
+
+    .main-content {
+      margin-left: 150px;
+      padding: 20px;
+      flex-grow: 1;
+      width: calc(100% - 150px);
+    }
+    .card-container {
+      display: grid;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .info-line {
+      display: flex;
+      justify-content: space-between;
+      margin: 6px 0;
+    }
+    .status {
+      font-weight: bold;
+    }
+    .chart-wrapper {
+      height: 300px;
+    }
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+/*     .card-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2 cards per row */
+  /* gap: 20px; */
+/* } */ */
+
+/* .square-card {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  min-width: 280px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-size: 18px;
+}
+
+.info-line {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+  align-items: center;
+} */
+    .square-card {
+    flex: 1 1 calc(25% - 16px); /* 4 cards in a row with spacing */
+    max-width: calc(25% - 16px);
+    background: #f5f5f5;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    box-sizing: border-box;
+    height: auto;
+    min-height: 300px;
+  }
+
+  @media screen and (max-width: 1024px) {
+    .square-card {
+      flex: 1 1 calc(50% - 16px); /* 2 cards per row on tablets */
+      max-width: calc(50% - 16px);
+    }
+  }
+
+  @media screen and (max-width: 600px) {
+    .square-card {
+      flex: 1 1 100%; /* 1 card per row on mobile */
+      max-width: 100%;
+    }
+  }
+
+  .info-line {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 16px;
+  }
+.home-card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  padding: 10px;
+}
+
+.home-square-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  min-height: 280px;
+  font-size: 15px;
+}
+
+.dashboard-alerts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+.logout-item {
+    margin-top: auto; /* Ensure logout sticks to bottom */
+}
+  </style>
+  <style>
+/* Threshold badge styles */
+.threshold-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 999px;
+  color: #fff;
+  margin-left: 8px;
+  vertical-align: middle;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* color classes (fallback) */
+.badge-blue { background: linear-gradient(90deg,#4facfe,#00f2fe); }
+.badge-green { background: linear-gradient(90deg,#7be495,#2ad39a); }
+.badge-orange { background: linear-gradient(90deg,#ffb86b,#ff8a00); }
+.badge-red { background: linear-gradient(90deg,#ff7a7a,#ff4f4f); }
+.badge-purple { background: linear-gradient(90deg,#cda4ff,#7b61ff); }
+.badge-teal { background: linear-gradient(90deg,#58f0d9,#2bb5ff); }
+
+/* small styling improvements for cards */
+.home-square-card {
+  background: linear-gradient(180deg, #ffffff, #fbfbff);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(10, 20, 40, 0.06);
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.info-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.sensor-name {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size: 15px;
+  color: #333;
+  font-weight: 600;
+}
+
+/* sensor small secondary text (min-max label) */
+.sensor-sub {
+  font-size: 12px;
+  color: #666;
+  margin-left: 6px;
+}
+
+/* When no threshold found */
+.badge-empty {
+  background: #e0e0e0;
+  color: #666;
+}
+
+.card-dashboard {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.08);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 350px;
+  height: 320px;
+}
+.card-header-dashboard {
+  font-size: 18px;
+  margin-bottom: 12px;
+  border-bottom: 2px solid #1a73e8;
+  padding-bottom: 4px;
+  color: #1a73e8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.select-group-dashboard {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+select {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+canvas {
+  flex: 1;
+  max-height: 500px;
+  margin: 20px;
+  padding: 20px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+table-dashboard {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  font-size: 13px;
+  table-layout: fixed;
+  word-wrap: break-word;
+}
+table th, table td {
+  padding: 12px;
+  font-size: 14px; 
+}
+.city-legend-dashboard {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.city-legend-dashboard div {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.color-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+.card-alerts {
+    background: #fff;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    min-height: 350px; /* Reduced from 450px */
+    display: flex;
+    flex-direction: column;
+}
+
+.card-alerts canvas {
+    flex: 1;
+    width: 100% !important;
+    height: 150px !important; /* Reduced from 200px */
+}
+
+.card-alerts h2 {
+    margin: 0 0 10px 0;
+}
+.alert-count {
+    display: flex;
+    align-items: center;
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+.alert-count .icon {
+    font-size: 32px;
+    margin-right: 8px;
+    color: #f44336;
+}
+.card-alerts .sensor-filter-alerts {
+    margin-bottom: 15px;
+}
+.card-alerts .sensor-filter-alerts select,
+.card-alerts .sensor-filter-alerts input {
+    margin-right: 10px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+
+.card-analytics:hover { transform: translateY(-3px); }
+.card-header-analytics { font-size:16px; margin-bottom:8px; border-bottom:2px solid #1a73e8; padding-bottom:4px; color:#1a73e8; display:flex; justify-content:space-between; align-items:center; }
+.select-group-analytics { display:flex; gap:8px; align-items:center; }
+select,input[type=date],button { padding:5px 8px; font-size:13px; border-radius:4px; border:1px solid #ccc; }
+.status-chip { font-size:0.85em; font-weight:bold; padding:3px 8px; border-radius:12px; color:#fff; display:inline-block; }
+.status-offline { background-color:#e53935; }
+.status-live { background-color:#43a047; }
+.reading-wrapper-analytics { display:flex; justify-content:space-between; align-items:center; margin-top:5px; }
+
+.chart-wrapper-analytics > div {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 250px;
+}
+.chart-wrapper-analytics canvas {
+  background: transparent !important;  /* ✅ no gray bg */
+  border: none !important;             /* ✅ remove blue border */
+  z-index: auto !important;
+  position: static !important;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 3 per row */
+  gap: 20px;
+}
+
+.card-analytics {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-wrapper-analytics {
+  height: 280px;     /* fixed height */
+  overflow: hidden;  /* ✅ stops gray canvas overlap */
+  margin-top: 8px;
+  padding-bottom: 15px;
+}
+
+.chart-container {
+  width: 100%;
+  height: 100%;
+}
+
+
+/* Responsive tweaks */
+@media (max-width: 600px) {
+  .home-square-card { min-height: 200px; padding: 12px; }
+}
+</style>
+<style>
+  body { margin:0; font-family:Arial, sans-serif; background:#fafafa; }
+  .chart-controls{
+    display:flex;
+    flex-wrap:wrap;
+    gap:20px;
+    padding:16px 24px;
+    background:#fff;
+    border-bottom:1px solid #e0e0e0;
+  }
+  .chart-controls label{
+    font-weight:600;
+    font-size:14px;
+  }
+  .chart-controls select{
+    margin-left:6px;
+    padding:4px 8px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    font-size:14px;
+  }
+  .range-buttons{
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  .range-buttons button{
+    padding:6px 14px;
+    font-size:13px;
+    border:1px solid #ccc;
+    border-radius:4px;
+    background:#f5f5f5;
+    cursor:pointer;
+  }
+  .range-buttons button.active{
+    background:#1976d2;
+    color:#fff;
+    border-color:#1976d2;
+  }
+  #chartContainer{
+    width:100%;
+    height:650px; /* taller stock-chart feel */
+    background:#fff;
+  }
+  #sensorChart{
+    width:100%!important;
+    height:100%!important;
+    display:block;
+  }
+  .stats-bar{
+    padding:12px 24px;
+    background:#fff;
+    border-top:1px solid #e0e0e0;
+    font-size:15px;
+  }
+</style>
+
+</head>
+<body>
+  <div class="sidebar">
+      <h2>Dashboard</h2>
+      <ul>
+        <li onclick="loadHome()">Home</li>
+        <li onclick="loadDashboard()">Dashboard</li>
+        <ul id="city-list"></ul>
+        <li onclick="loadAlerts('Pune')">Alerts</li>
+        <li onclick="renderAnalyticsForCity('Mumbai')">Analytics</li>
+        <li onclick="loadUsers()">Users</li>
+      </ul>
+    </div>
+    <div class="logout-item">
+      <ul>
+        <li onclick="logoutUser()">Logout</li>
+      </ul>
+    </div>
+
+  <div class="main-content" id="main-content"></div>
+  <script>
+    let roles = [];
+    let citiesCall = [];
+    // Make sidebar items selectable
+    const sidebarItems = document.querySelectorAll('.sidebar ul li');
+
+    sidebarItems.forEach(item => {
+        item.addEventListener('click', () => {
+            sidebarItems.forEach(i => i.classList.remove('active')); // remove active from all
+            item.classList.add('active'); // add active to clicked
+        });
+    });
+
+    // let chartBuffers = {};
+    // let charts = {};
+    let currentCitySocket = null;
+    let chartLabels = {};
+    const pageCache = {};
+    async function loadHome() {
+  const container = document.getElementById("main-content");
+container.innerHTML = `
+
+  <div style="
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    flex-wrap: wrap; 
+    padding: 18px 20px; 
+    border-radius: 0; 
+    background: #ffffff;   /* White background */
+    color: #333; 
+    border-bottom: 2px solid #ddd;
+    margin-bottom: 20px;
+  ">
+    <!-- Left controls -->
+    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 16px;">
+      <select id="citySelect" 
+        style="padding: 12px 16px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; outline: none; cursor: pointer; min-width: 170px; background:white; color:#333;">
+        <option value="">Select City</option>
+        <option value="delhi">Delhi</option>
+        <option value="mumbai">Mumbai</option>
+        <option value="hyderabad">Hyderabad</option>
+        <option value="pune">Pune</option>
+      </select>
+      <input type="date" id="startDate" 
+        style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+      <input type="date" id="endDate" 
+        style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+
+      <!-- Export Dropdown -->
+      <div style="position: relative;">
+        <button id="exportDropdownBtn" 
+          style="padding: 12px 18px; font-size: 16px; font-weight: 600; cursor: pointer; background-color: #1a73e8; color: #fff; border: none; border-radius: 6px; min-width: 150px;">
+          ⬇️ Export
+        </button>
+        <div id="exportMenu" 
+          style="display: none; position: absolute; top: 110%; left: 0; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.08); min-width: 160px; z-index: 1000; font-size: 15px; color:#333;">
+          <div class="export-option" data-type="csv" style="padding: 12px; cursor: pointer;">📄 Export as CSV</div>
+          <div class="export-option" data-type="pdf" style="padding: 12px; cursor: pointer;">📑 Export as PDF</div>
+          <div class="export-option" data-type="xls" style="padding: 12px; cursor: pointer;">📊 Export as XLS</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right section with logo + profile -->
+    <div style="display: flex; align-items: center; gap: 20px;">
+
+      <!-- Profile dropdown -->
+      <div style="position: relative;">
+        <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/userpic.png" 
+          alt="Profile" 
+          id="profileBtn"
+          style="height: 42px; width: 42px; border-radius: 50%; cursor: pointer; border: 2px solid #ccc;" />
+
+        <div id="profileMenu" 
+          style="display: none; position: absolute; right: 0; top: 110%; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); min-width: 250px; z-index: 1000; font-size: 15px; color:#333;">
+          <div style="padding: 12px; border-bottom: 1px solid #eee; font-weight: bold;">👤 My Profile</div>
+          <div style="padding: 12px;">
+            <p style="margin: 4px 0;"><strong>Name:</strong> Anurag Mishra</p>
+            <p style="margin: 4px 0;"><strong>Username:</strong> anurag123</p>
+            <p style="margin: 4px 0;"><strong>Email:</strong> anurag@example.com</p>
+          </div>
+          <div style="padding: 12px; cursor: pointer; color: red; border-top: 1px solid #eee;">🚪 Logout</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard rows -->
+  <div id="threshold-row" style="margin-top: 10px; display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap: 16px;"></div>
+  <div id="status-row" style="margin-top: 20px; display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap: 16px;"></div>
+
+  <!-- Info Modal -->
+  <div id="infoModal" 
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:white; padding:20px; border-radius:12px; max-width:600px; width:90%; box-shadow:0 4px 12px rgba(0,0,0,0.3); position:relative;">
+      <span id="closeInfoModal" style="position:absolute; top:10px; right:14px; font-size:20px; cursor:pointer;">❌</span>
+      <h2 id="infoTitle" style="margin-bottom:10px; color:#1a73e8;"></h2>
+      <p id="infoContent" style="line-height:1.6; font-size:15px; color:#333;"></p>
+    </div>
+  </div>
+`;
+
+
+  const modal = document.getElementById("infoModal");
+  const closeModal = document.getElementById("closeInfoModal");
+  const infoTitle = document.getElementById("infoTitle");
+  const infoContent = document.getElementById("infoContent");
+  closeModal.addEventListener("click", () => modal.style.display = "none");
+
+  function showInfo(title, content) {
+    infoTitle.textContent = title;
+    infoContent.innerHTML = content;
+    modal.style.display = "flex";
+  }
+  // Dropdown toggle
+  const exportBtn = document.getElementById("exportDropdownBtn");
+  const exportMenu = document.getElementById("exportMenu");
+  exportBtn.addEventListener("click", () => {
+    exportMenu.style.display = exportMenu.style.display === "block" ? "none" : "block";
+  });
+  document.querySelectorAll(".export-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+      alert("Exporting as " + opt.dataset.type.toUpperCase() + "...");
+      exportMenu.style.display = "none";
+    });
+  });
+
+  const cities = [
+    { name: "delhi", display: "Delhi", icon: "🏛️", color: "#f28b82" },
+    { name: "mumbai", display: "Mumbai", icon: "🌆", color: "#aecbfa" },
+    { name: "hyderabad", display: "Hyderabad", icon: "🏯", color: "#fdd663" },
+    { name: "pune", display: "Pune", icon: "🌇", color: "#d7aefb" }
+  ];
+
+  const sensors = [
+    { key: "co2", label: "CO₂", icon: "🟢" },
+    { key: "nh3", label: "NH₃", icon: "🧪" },
+    { key: "so2", label: "SO₂", icon: "🌫️" },
+    { key: "h2s", label: "H₂S", icon: "💨" },
+    { key: "temp", label: "Temp", icon: "🌡️" },
+    { key: "humid", label: "Humid", icon: "💧" }
+  ];
+
+  function randomVal(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+  function randomStatus() {
+    return Math.random() > 0.3 ? "Live" : "Offline";
+  }
+
+  const thresholdRow = document.getElementById("threshold-row");
+  const statusRow = document.getElementById("status-row");
+  // Fetch data from APIs
+  let coldStorages = [];
+  let sensorBoxes = [];
+  let thresValues = [];
+  try {
+    citiesCall = await fetch('https://api.neuronwise.in/nw-ui/cities')
+      .then(res => res.ok ? res.json() : Promise.reject("Failed to load cities"))
+      .catch(e => {
+        console.error("Error loading cities", e);
+        return [];
+      });
+    // Get the token from wherever you have it stored, e.g., localStorage
+    // const token = localStorage.getItem("access_token"); // or from a variable/session
+    const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc1NzY1NjIzNiwianRpIjoiYjk0MWYyM2UtNDQzMC00MDEwLWJmODYtMzQzMzQwNWM3NDkzIiwidHlwZSI6ImFjY2VzcyIsInN1YiI6ImFudXJhZzY2NiIsIm5iZiI6MTc1NzY1NjIzNiwiY3NyZiI6ImYxMzkxMzNiLTNmOWYtNDRiMy05ZWIyLWM5YTM1NzU1ZTNiNyIsImV4cCI6MTc1NzY3NzgzNn0.s9rfSCR-B1xk3mgKQrtfZu5x5oyLkD5aULpGEhAwdac";
+    coldStorages = await fetch('https://api.neuronwise.in/nw-ui/cold_storages', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,  // <-- Pass the JWT token here
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(res => res.ok ? res.json() : Promise.reject("Failed to load cold storages"))
+    .catch(e => {
+      console.error("Error loading cold storages", e);
+      return [];
+    });
+
+    roles = await fetch('https://api.neuronwise.in/nw-ui/roles')
+      .then(res => res.ok ? res.json() : Promise.reject("Failed to load roles"))
+      .catch(e => {
+        console.error("Error loading roles", e);
+        return [];
+      });
+
+    sensorBoxes = await fetch('https://api.neuronwise.in/nw-ui/boxes', {
+        method: 'GET',
+        headers: {
+        'Authorization': `Bearer ${token}`,  // <-- Pass the JWT token here
+        'Content-Type': 'application/json'
+        }
+      })
+      .then(res => res.ok ? res.json() : Promise.reject("Failed to load boxes"))
+      .catch(e => {
+        console.error("Error loading roles", e);
+        return [];
+      });
+    thresValues = await fetch('https://api.neuronwise.in/nw-ui/get_thresholds', {
+        method: 'GET',
+        headers: {
+        'Authorization': `Bearer ${token}`,  // <-- Pass the JWT token here
+        'Content-Type': 'application/json'
+        }
+      })
+      .then(res => res.ok ? res.json() : Promise.reject("Failed to load boxes"))
+      .catch(e => {
+        console.error("Error loading roles", e);
+        return [];
+      });
+
+    disconnectLogs = await fetch('https://api.neuronwise.in/nw-ui/disconnect-logs', {
+        method: 'GET',
+        headers: {
+        'Authorization': `Bearer ${token}`,  // <-- Pass the JWT token here
+        'Content-Type': 'application/json'
+        }
+      })
+      .then(res => res.ok ? res.json() : Promise.reject("Failed to load boxes"))
+      .catch(e => {
+        console.error("Error loading roles", e);
+        return [];
+      });
+
+  } catch (error) {
+    console.error("API fetching error", error);
+  }
+  console.log("Loaded roles:", roles);
+  console.log("Loaded cities:", citiesCall);
+  console.log("Loaded cold storages:", coldStorages);
+  console.log("Loaded cold storages:", sensorBoxes);
+  console.log("Loaded cold thesholds:", thresValues);
+  console.log("Loaded disconnect logs:", disconnectLogs);
+  // Assume coldStorages and citiesCall are already loaded
+
+  const mappedcities = coldStorages.map(cs => {
+    // Find the matching city from citiesCall using city_id
+    const city = citiesCall.find(c => c.id === cs.city_id);
+
+    return {
+      name: city ? city.name.toLowerCase() : "unknown",
+      display: city ? city.name : "Unknown",
+      icon: "🏙️",       // common icon for all cities
+      color: "#cccccc"   // same color for all
+    };
+  });
+
+  // Optional: remove duplicates if multiple cold storages are in same city
+  const uniqueCities = Array.from(new Map(mappedcities.map(c => [c.name, c])).values());
+
+  console.log("Mapped cities:", uniqueCities);
+  // Create a map of cold_storage_id to box count
+  const boxCountMap = {};
+  sensorBoxes.forEach(box => {
+    const csId = box.cold_storage_id;
+    if (boxCountMap[csId]) {
+      boxCountMap[csId] += 1;
+    } else {
+      boxCountMap[csId] = 1;
+    }
+  });
+
+  // Add box count to each cold storage
+  const coldStoragesWithBoxCount = coldStorages.map(cs => ({
+      ...cs,
+    boxCount: boxCountMap[cs.id] || 0  // default 0 if no boxes
+  }));
+
+  console.log("Cold storages with box count:", coldStoragesWithBoxCount);
+
+const cityCards = citiesCall.map(city => {
+  // Get all cold storages in this city
+  const coldStoragesInCity = coldStorages.filter(cs => cs.city_id === city.id);
+
+  // Count all boxes in these cold storages
+  const totalBoxes = coldStoragesInCity.reduce((count, cs) => {
+    const boxesInCS = sensorBoxes.filter(box => box.cold_storage_id === cs.id);
+    return count + boxesInCS.length;
+  }, 0);
+
+  return {
+    id: city.id,
+    name: city.name.toLowerCase(),
+    display: city.name,
+    icon: "🏙️",       // common icon
+    color: "#cccccc",  // common color
+    boxCount: totalBoxes
+  };
+});
+
+console.log("City cards with box count:", cityCards);
+// Assuming you already have citiesCall, coldStorages, sensorBoxes, and thresValues loaded
+
+// Create a map from cold_storage_id to city_id for quick lookup
+const coldStorageToCity = {};
+coldStorages.forEach(cs => {
+    coldStorageToCity[cs.id] = cs.city_id;
+});
+
+// Create a map from city_id to city details
+const cityMap = {};
+citiesCall.forEach(city => {
+    cityMap[city.id] = { name: city.name, icon: "🏙️", color: "#cccccc" };
+});
+
+// Initialize a structure to store thresholds city-wise
+const cityThresholds = {};
+
+// Process each threshold entry
+thresValues.forEach(threshold => {
+    const cityId = coldStorageToCity[threshold.cold_storage_id];
+    if (!cityId) return; // skip if mapping not found
+
+    if (!cityThresholds[cityId]) {
+        cityThresholds[cityId] = {
+            city: cityMap[cityId],
+            sensors: {
+                sensor1: [],
+                sensor2: [],
+                sensor3: [],
+                sensor4: [],
+                sensor5: [],
+                sensor6: []
+            }
+        };
+    }
+
+    // Add sensor thresholds to the corresponding sensor array
+    for (let i = 1; i <= 6; i++) {
+        const sensorKey = `sensor${i}`;
+        if (threshold.hasOwnProperty(`${sensorKey}_threshold`)) {
+            cityThresholds[cityId].sensors[sensorKey].push(threshold[`${sensorKey}_threshold`]);
+        }
+    }
+});
+
+// Now, cityThresholds contains grouped thresholds by city and sensor
+
+// Example: display it
+for (const cityId in cityThresholds) {
+    const cityData = cityThresholds[cityId];
+    console.log(`City: ${cityData.city.name}`);
+    for (let i = 1; i <= 6; i++) {
+        const sensorKey = `sensor${i}`;
+        const thresholds = cityData.sensors[sensorKey];
+        const average = thresholds.length > 0 ? (thresholds.reduce((a, b) => a + b, 0) / thresholds.length).toFixed(2) : "N/A";
+        console.log(`  ${sensorKey.toUpperCase()}: Count=${thresholds.length}, Avg=${average}`);
+    }
+    console.log('-----------------------------');
+}
+
+// cityCards already contains boxCount for each city
+cityCards.forEach(city => {
+    // --- Threshold card ---
+    const thresholdCard = document.createElement("div");
+    thresholdCard.style.cssText = "background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.12); overflow:hidden;";
+    const thresholdSensors = sensors.map(s => {
+  const sensorKey = `sensor${sensors.indexOf(s) + 1}`; // sensor1..sensor6
+  const cityThresh = cityThresholds[city.id];
+  const thresholds = cityThresh && cityThresh.sensors[sensorKey] ? cityThresh.sensors[sensorKey] : [];
+  const count = thresholds.length;
+  const average = count > 0 ? (thresholds.reduce((a, b) => a + b, 0) / count).toFixed(2) : "N/A";
+
+  const rowId = `${city.name}-${s.key}-row`;
+  const detailsId = `${city.name}-${s.key}-details`;
+
+  let sensorsList = "";
+  if (count > 0) {
+    thresholds.forEach((value, idx) => {
+      sensorsList += `
+      <div style="display:flex; align-items:center; justify-content:space-between; font-size:14px; font-weight:500; padding:6px 10px; margin-bottom:6px; background:#fafafa; border-radius:8px; border:1px solid #e0e0e0;">
+        <span>${s.label} - Sensor ${idx + 1}</span>
+        <div style="font-size:12px; padding:4px 8px; border-radius:6px; background:#e0e0e0; color:#333;">Threshold: ${value}</div>
+      </div>`;
+    });
+  } else {
+    sensorsList = `<div style="padding:10px; text-align:center; color:#999;">No threshold data available</div>`;
+  }
+
+  return `
+    <div id="${rowId}" class="sensor-row" style="padding:12px; border-bottom:1px solid #eee; cursor:pointer;">
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+        <div style="display:flex; align-items:center; gap:8px; min-width:70px;">
+          <span style="font-size:16px;">${s.icon}</span>
+          <span>${s.label}</span>
+        </div>
+        <div style="flex:1; height:8px; background:#eee; border-radius:6px;">
+          <div style="width:${Math.min(100, average)}%; background:${average > 80 ? '#f28b82' : '#34a853'}; height:100%; border-radius:6px;"></div>
+        </div>
+        <div style="font-size:12px; padding:4px 8px; border-radius:6px; background:#e0e0e0; color:#333;">
+          Avg: ${average}
+        </div>
+      </div>
+      <div id="${detailsId}" class="sensor-details" style="display:none; margin-top:10px;">
+        ${sensorsList}
+      </div>
+    </div>`;
+}).join("");
+
+    thresholdCard.innerHTML = `
+       <div style="padding:14px; border-bottom:2px solid #1a73e8; color:#1a73e8; display:flex; align-items:center; justify-content:space-between;">
+         <span style="font-size:18px;">${city.icon} ${city.display}</span>
+         <span class="info-icon" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+       </div>
+       ${thresholdSensors}
+    `;
+
+    thresholdRow.appendChild(thresholdCard);
+
+    thresholdCard.querySelector(".info-icon").addEventListener("click", () => {
+      showInfo(
+        `${city.display} - Thresholds`,
+        `This card displays the maximum permissible threshold values for each gas and environmental sensor in ${city.display}. 
+        <br><br><b>Interpretation:</b><br>
+        • Progress bar shows how close the current sensor readings are to the threshold.<br>
+        • Green indicates safe levels, while red indicates critical exceedance.<br>
+        • Click a row to view detailed sensor-wise breakdown.`
+      );
+    });
+
+    // Add event listeners for expanding/collapsing sensor details
+    sensors.forEach(s => {
+      const rowEl = document.getElementById(`${city.name}-${s.key}-row`);
+      const detailsEl = document.getElementById(`${city.name}-${s.key}-details`);
+      rowEl.addEventListener("click", e => {
+        e.stopPropagation();
+        detailsEl.style.display = detailsEl.style.display === "none" ? "block" : "none";
+      });
+    });
+
+    // --- Status card (similar logic) ---
+    const statusCard = document.createElement("div");
+    statusCard.style.cssText = "background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.12); overflow:hidden;";
+
+    let statusSensors = sensors.map(s => {
+      let sensorsList = "";
+      for (let i = 1; i <= city.boxCount; i++) {  // use boxCount
+        let status = randomStatus();
+        sensorsList += `
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:15px; font-weight:500; padding:6px 10px; margin-bottom:6px; background:#fafafa; border-radius:8px; border:1px solid #e0e0e0;">
+            <span>${s.label} - Sensor ${i}</span>
+            <span style="padding:4px 8px; border-radius:12px; color:white; background:${status === 'Live' ? '#34a853' : '#ea4335'};">${status}</span>
+          </div>`;
+      }
+      let aggStatus = randomStatus();
+
+      const rowId = `${city.name}-${s.key}-status-row`;
+      const detailsId = `${city.name}-${s.key}-status-details`;
+
+      return `
+        <div id="${rowId}" class="sensor-row" style="padding:12px; border-bottom:1px solid #eee; cursor:pointer;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:16px;">${s.icon}</span>
+              <span>${s.label}</span>
+            </div>
+            <span style="padding:6px 12px; border-radius:16px; font-size:13px; font-weight:600; color:white; background:${aggStatus === 'Live' ? '#34a853' : '#ea4335'};">${aggStatus}</span>
+          </div>
+          <div id="${detailsId}" class="sensor-details" style="display:none; margin-top:10px;">
+            ${sensorsList}
+          </div>
+        </div>`;
+    }).join("");
+
+    statusCard.innerHTML = `
+       <div style="padding:14px; border-bottom:2px solid #1a73e8; color:#1a73e8; font-size:18px; display:flex; align-items:center; justify-content:space-between;">
+         <span style="font-size:18px;">${city.icon} ${city.display}</span>
+         <span class="info-icon" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+       </div>
+       ${statusSensors}
+    `;
+
+    statusRow.appendChild(statusCard);
+
+    statusCard.querySelector(".info-icon").addEventListener("click", () => {
+      showInfo(
+        `${city.display} - Sensor Status`,
+        `This card shows the operational status of all sensors in ${city.display}.<br><br>
+        • <b>Live</b>: Sensor is transmitting valid data.<br>
+        • <b>Offline</b>: Sensor is not sending data, may need maintenance or connectivity check.<br><br>
+        Click a row to view sensor-wise details.`
+      );
+    });
+
+    sensors.forEach(s => {
+      const rowEl = document.getElementById(`${city.name}-${s.key}-status-row`);
+      const detailsEl = document.getElementById(`${city.name}-${s.key}-status-details`);
+      rowEl.addEventListener("click", e => {
+        e.stopPropagation();
+        detailsEl.style.display = detailsEl.style.display === "none" ? "block" : "none";
+      });
+    });
+});
+// Toggle profile menu
+    document.getElementById("profileBtn").addEventListener("click", () => {
+      const menu = document.getElementById("profileMenu");
+      menu.style.display = menu.style.display === "block" ? "none" : "block";
+    });
+
+    // Close dropdown if clicked outside
+    window.addEventListener("click", (e) => {
+      if (!e.target.closest("#profileBtn")) {
+        document.getElementById("profileMenu").style.display = "none";
+      }
+    });
+  if (typeof startHomeSocketLiveUpdates === "function") startHomeSocketLiveUpdates();
+}
+
+
+    async function exportCSV() {
+  const city = document.getElementById("citySelect")?.value || "";
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
+
+  if (!start || !end) {
+    alert("Please select a date range");
+    return;
+  }
+
+  try {
+    const token = sessionStorage.getItem("jwt") || localStorage.getItem("jwt"); // or localStorage.getItem("jwt")
+    if (!token) {
+        alert("You are not logged in or session expired.");
+        return;
+    }
+
+    const res = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`, {
+        method: "GET",
+        headers: {
+            "Authorization": "Bearer " + token, // <-- Pass JWT token here
+            "Content-Type": "application/json"
+        }
+    });
+    // const res = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`);
+    if (!res.ok) throw new Error("Failed to fetch data");
+
+    const allData = await res.json();
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    endDate.setHours(23, 59, 59, 999);
+
+    const filteredData = allData.filter(item => {
+      const readingDate = new Date(item.reading_time);
+      return readingDate >= startDate && readingDate <= endDate;
+    });
+
+    if (!filteredData.length) {
+      alert("No data found for the selected range");
+      return;
+    }
+
+    // ✅ Updated column mapping to match API keys
+    const columnMap = {
+      reading_time: "Timestamp",
+      sensor1: "CO2 (ppm)",
+      sensor2: "NH3 (ppm)",
+      sensor3: "SO2 (ppm)",
+      sensor4: "H2S (ppm)",
+      temperature: "Temperature (°C)",
+      humidity: "Humidity (%)"
+    };
+
+    const headers = Object.values(columnMap);
+    const keys = Object.keys(columnMap);
+
+    const csvRows = [];
+    csvRows.push(headers.join(",")); // header row
+
+    filteredData.forEach(row => {
+      const values = keys.map(k => {
+        let val = row[k];
+        if (val === null || val === undefined || val === "None") val = "";
+        return JSON.stringify(val);
+      });
+      csvRows.push(values.join(","));
+    });
+
+    const csvData = csvRows.join("\n");
+
+    const blob = new Blob([csvData], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${city || "all_cities"}_readings_${start}_to_${end}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error(err);
+    alert("Error exporting CSV");
+  }
+}
+
+
+
+     let cityLastUpdated = {
+  delhi: 0,
+  mumbai: 0,
+  hyderabad: 0,
+  pune: 0
+};
+
+function startHomeSocketLiveUpdates() {
+  const socket = io("https://api.neuronwise.in", { transports: ["websocket"] });
+
+  socket.on("connect", () => console.log("Connected to Home socket"));
+
+  socket.on("new_reading", (data) => {
+    const cities = ["delhi", "mumbai", "hyderabad", "pune"];
+    // const sensors = ["sensor1", "sensor2", "sensor3", "sensor4", "sensor5", "sensor6"];
+    const sensors = [
+     { name: "sensor1" },
+     { name: "sensor2" },
+     { name: "sensor3" },
+     { name: "sensor4" },
+     { name: "sensor5" }, // backend sends temp here
+     { name: "sensor6" }  // backend sends humidity here
+    ];
+
+
+    const now = Date.now();
+    cities.forEach(city => {
+      cityLastUpdated[city] = now;
+      sensors.forEach(sensor => {
+      const el = document.getElementById(`${city}-${sensor.name}-status`);
+        if (el) {
+          const value = data[sensor.name];
+          const isConnected = value !== null && value !== undefined;
+          el.textContent = isConnected ? "✅" : "❌";
+          el.style.color = isConnected ? "green" : "red";
+        }
+     });
+
+      // sensors.forEach(sensor => {
+      //   const el = document.getElementById(`${city}-${sensor}-status`);
+      //   if (el) {
+      //     const value = data[sensor];
+      //     const isConnected = value !== null && value !== undefined;
+      //     el.textContent = isConnected ? "✅" : "❌";
+      //     el.style.color = isConnected ? "green" : "red";
+      //   }
+      // });
+    });
+  });
+
+  socket.on("disconnect", () => console.warn("Disconnected from Home socket"));
+
+  // 🕒 Set an interval to check if a city hasn’t updated in 10 seconds
+  setInterval(() => {
+    const now = Date.now();
+    const timeout = 10 * 1000; // 10 seconds
+    const sensors = ["sensor1", "sensor2", "sensor3", "sensor4", "sensor5", "sensor6"];
+
+    for (const city in cityLastUpdated) {
+      if (now - cityLastUpdated[city] > timeout) {
+        sensors.forEach(sensor => {
+          const el = document.getElementById(`${city}-${sensor}-status`);
+          if (el) {
+            el.textContent = "❌";
+            el.style.color = "red";
+          }
+        });
+      }
+    }
+  }, 3000); // check every 3 seconds
+}
+
+    // function loadCity(city) {
+    //   const container = document.getElementById("main-content");
+    //   container.innerHTML = `<h2>${city} Sensors</h2><div class="card-container" id="sensor-cards"></div>`;
+    //   const sensors = ["sensor1", "sensor2", "sensor3", "sensor4"];
+    //   const wrapper = document.getElementById("sensor-cards");
+
+    //   sensors.forEach(sensor => {
+    //     const card = document.createElement("div");
+    //     card.className = "card";
+    //     card.innerHTML = `
+    //       <h3>${sensor}</h3>
+    //       <p>Current: <span id="${sensor}-value">--</span></p>
+    //       <div class="chart-wrapper"><canvas id="chart-${sensor}"></canvas></div>
+    //     `;
+    //     wrapper.appendChild(card);
+    //   });
+
+    //   startCitySocket(city);
+    // }
+    function initChartBuffer(city) {
+      if (!chartBuffers[city]) {
+        chartBuffers[city] = {
+          sensor1: [], sensor2: [], sensor3: [], sensor4: [],sensor5: [], sensor6: [], 
+          labels: []
+        };
+      }
+    }
+    function destroyCityCharts(city) {
+      const cityKey = city.toLowerCase();
+      ["sensor1", "sensor2", "sensor3", "sensor4","sensor5","sensor6"].forEach(sensor => {
+        const chartId = `${cityKey}-${sensor}`;
+        if (charts[chartId]) {
+          charts[chartId].destroy();
+          delete charts[chartId];
+        }
+      });
+    }
+let lastKnownReadings = {};
+let lastKnownStatus = {};
+const MAX_POINTS = 10;
+let chartPage = {}; // track current page per city
+let chartBuffers = {};
+let charts = {};
+
+async function loadCityApiCall(city) {
+  destroyCityCharts(city);
+  const container = document.getElementById("main-content");
+
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
+      <h2 style="margin:0;white-space:nowrap;">City: ${city}</h2>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <input type="date" id="startDate">
+        <input type="date" id="endDate">
+        <button id="exportBtn" style="padding:5px 10px;">Export CSV</button>
+        <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+             alt="Logo" style="height:40px;width:auto;object-fit:contain;cursor:pointer;">
+      </div>
+    </div>
+    <div class="card-container" id="sensor-cards" 
+      style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
+    <div id="pagination" style="margin-top:15px;display:flex;justify-content:center;gap:10px;">
+      <button id="prevBtn">⬅ Prev</button>
+      <button id="nextBtn">Next ➡</button>
+    </div>
+  `;
+
+  const sensors = [
+    { name: "sensor1", label: "CO2", unit: "ppm" },
+    { name: "sensor2", label: "NH3", unit: "ppm" },
+    { name: "sensor3", label: "SO2", unit: "ppm" },
+    { name: "sensor4", label: "H2S", unit: "ppm" },
+    { name: "sensor5", label: "Temperature", unit: "°C" },
+    { name: "sensor6", label: "Humidity", unit: "%" }
+  ];
+
+  // Initialize lastKnownStatus
+  sensors.forEach(s => lastKnownStatus[s.name] = false);
+
+  // Cards
+  const wrapper = document.getElementById("sensor-cards");
+  sensors.forEach(sensor => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.minHeight = "200px";
+    card.innerHTML = `
+      <h3 style="margin:5px 0;display:flex;justify-content:space-between;align-items:center;">
+        ${sensor.label}
+        <span id="${sensor.name}-status" style="font-size:0.9em;color:red;">❌</span>
+      </h3>
+      <p style="margin:0;">Reading: <span id="${sensor.name}-value">--</span> ${sensor.unit}</p>
+      <div class="chart-wrapper" style="height:250px;">
+        <canvas id="chart-${sensor.name}"></canvas>
+      </div>
+    `;
+    wrapper.appendChild(card);
+  });
+
+  try {
+    const token = sessionStorage.getItem("jwt") || localStorage.getItem("jwt"); // or localStorage.getItem("jwt")
+    if (!token) {
+        alert("You are not logged in or session expired.");
+        return;
+    }
+
+    const res = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`, {
+        method: "GET",
+        headers: {
+            "Authorization": "Bearer " + token, // <-- Pass JWT token here
+            "Content-Type": "application/json"
+        }
+    });
+    // const res = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`);
+    const historyData = await res.json();
+
+    const cityKey = city.toLowerCase();
+    chartBuffers[cityKey] = { labels: [], allReadings: historyData };
+    sensors.forEach(s => (chartBuffers[cityKey][s.name] = []));
+
+    chartPage[cityKey] = Math.max(0, Math.floor(historyData.length / MAX_POINTS) - 1);
+
+    drawPage(cityKey, sensors);
+
+    // Export CSV
+    document.getElementById("exportBtn").addEventListener("click", async () => {
+      const start = document.getElementById("startDate").value;
+      const end = document.getElementById("endDate").value;
+      if (!start || !end) { alert("Please select a date range"); return; }
+      let data = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`).then(r=>r.json());
+      data = data.filter(row => {
+        const rowDate = row.reading_time?.split("T")[0];
+        return rowDate >= start && rowDate <= end;
+      });
+      if (!data.length) { alert("No data found"); return; }
+
+      const columnMap = {
+        reading_time: "Timestamp",
+        sensor1: "CO2 (ppm)",
+        sensor2: "NH3 (ppm)",
+        sensor3: "SO2 (ppm)",
+        sensor4: "H2S (ppm)",
+        sensor5: "Temperature (°C)",
+        sensor6: "Humidity (%)"
+      };
+      const headers = Object.values(columnMap);
+      const keys = Object.keys(columnMap);
+      const csvRows = [headers.join(",")];
+      data.forEach(row => csvRows.push(keys.map(k => JSON.stringify(row[k] ?? "")).join(",")));
+
+      const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `sensor_readings_${start}_to_${end}.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // Pagination
+    document.getElementById("prevBtn").addEventListener("click", () => {
+      if (chartPage[cityKey] > 0) { chartPage[cityKey]--; drawPage(cityKey, sensors); }
+    });
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      if ((chartPage[cityKey]+1)*MAX_POINTS < chartBuffers[cityKey].allReadings.length) { chartPage[cityKey]++; drawPage(cityKey, sensors); }
+    });
+
+    // Live updates
+    startCitySocket(city, sensors);
+
+  } catch (err) { console.error("Error fetching historical data:", err); }
+}
+// -----------------------------
+// Socket live update
+// -----------------------------
+    function startCitySocket(city, sensors) {
+  const cityKey = city.toLowerCase();
+  const socket = io("https://api.neuronwise.in/", { transports: ["websocket"] });
+
+  socket.on("connect", () => {
+    console.log(`Connected to ${city} socket`);
+    sensors.forEach(s => updateSensorStatus(s.name, true));
+  });
+
+  socket.on("disconnect", () => {
+    console.warn(`Socket disconnected: ${city}`);
+    sensors.forEach(s => updateSensorStatus(s.name, false));
+  });
+
+  const SENSOR_TIMEOUT = 10000;
+  let lastReadingTime = {};
+  setInterval(() => {
+    const now = Date.now();
+    sensors.forEach(s => {
+      if (!lastReadingTime[s.name] || now - lastReadingTime[s.name] > SENSOR_TIMEOUT) {
+        updateSensorStatus(s.name, false);
+      }
+    });
+  }, 2000);
+  socket.on("new_reading", (data) => {
+    sensors.forEach(s => {
+      let value;
+      switch(s.name){
+        case "sensor5": value = data.sensor5 ?? data.temperature; break;
+        case "sensor6": value = data.sensor6 ?? data.humidity; break;
+        default: value = data[s.name];
+      }
+
+      lastKnownReadings[s.name] = value ?? lastKnownReadings[s.name] ?? "--";
+      const connected = value !== undefined && value !== null;
+      lastKnownStatus[s.name] = connected;
+
+      updateSensorValue(s.name, lastKnownReadings[s.name]);
+      updateSensorStatus(s.name, connected);
+
+      lastReadingTime[s.name] = Date.now();
+    });
+
+    // Keep only last MAX_POINTS for live chart
+    chartBuffers[cityKey].allReadings.push(data);
+    if(chartBuffers[cityKey].allReadings.length > MAX_POINTS) {
+      chartBuffers[cityKey].allReadings.shift();
+    }
+
+    drawPage(cityKey, sensors, true); // update charts only, DOM already updated
+  });
+}
+
+function drawPage(cityKey, sensors, skipDomUpdate = false) {
+  const buffer = chartBuffers[cityKey];
+  const pageReadings = buffer.allReadings.slice(-MAX_POINTS); // always last MAX_POINTS readings
+
+  buffer.labels = [];
+  sensors.forEach(s => (buffer[s.name] = []));
+
+  pageReadings.forEach(row => {
+    const time = formatTime(row.reading_time);
+    buffer.labels.push(time);
+
+    sensors.forEach(s => {
+      let value;
+      switch(s.name){
+        case "sensor5": value = row.sensor5 ?? row.temperature; break;
+        case "sensor6": value = row.sensor6 ?? row.humidity; break;
+        default: value = row[s.name];
+      }
+
+      buffer[s.name].push(value ?? null);
+
+      if(!skipDomUpdate){
+        const valEl = document.getElementById(`${s.name}-value`);
+        if(valEl) valEl.textContent = value ?? "--";
+      }
+    });
+  });
+
+  sensors.forEach(sensor => {
+    const ctx = document.getElementById(`chart-${sensor.name}`);
+    const chartId = `${cityKey}-${sensor.name}`;
+    if(!charts[chartId]){
+      charts[chartId] = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [...buffer.labels],
+          datasets:[{
+            label: sensor.label,
+            data: [...buffer[sensor.name]],
+            borderColor: "#1abc9c",
+            fill:false,
+            tension:0.3,
+            pointStyle:"circle",
+            pointRadius:4,
+            pointHoverRadius:5,
+            pointBackgroundColor:"#1abc9c",
+            pointBorderWidth:0
+          }]
+        },
+        options: {
+          scales: { x:{ticks:{maxTicksLimit:6}}, y:{beginAtZero:true,title:{display:true,text:"Value"}} },
+          plugins: { legend:{display:false} },
+          responsive:true,
+          maintainAspectRatio:false
+        }
+      });
+    } else {
+      const chart = charts[chartId];
+      chart.data.labels = [...buffer.labels];
+      chart.data.datasets[0].data = [...buffer[sensor.name]];
+      chart.update();
+    }
+  });
+}
+
+
+// -----------------------------
+// Helper functions (unchanged)
+// -----------------------------
+function updateSensorValue(sensorName, value) {
+  const el = document.getElementById(`${sensorName}-value`);
+  if (el) el.textContent = value ?? "--";
+}
+function updateSensorStatus(sensorName, connected) {
+  const statusEl = document.getElementById(`${sensorName}-status`);
+  if (statusEl) {
+    statusEl.textContent = connected ? "✅" : "❌";
+    statusEl.style.color = connected ? "green" : "red";
+  }
+}
+
+function logoutUser() {
+    console.log("Logging out user");
+    // Clear JWT token from storage
+    sessionStorage.removeItem("jwt"); 
+    localStorage.removeItem("jwt");
+    // Redirect to login page
+    window.location.href = "https://api.neuronwise.in/nw-ui/nw_analytics_login";
+}
+    function formatTime(str) {
+       const parts = str.split(" ");
+       const time = parts[1] || "";
+       return time.slice(0, 5); // returns "HH:mm"
+    }
+   let citiesCallDashboard = [];
+   let thresholdBreaches = [];
+async function loadDashboard() {
+  const container = document.getElementById("main-content");
+  container.innerHTML = '';
+  let disconnectLogs = [];
+  let citiesCall = [];
+  const sensors = ["CO₂", "NH₃", "SO₂", "H₂S", "Temperature", "Humidity"];
+  const cities = ["Delhi", "Mumbai", "Bangalore", "Chennai"];
+  const colors = ["#1a73e8", "#f29900", "#34a853", "#ea4335"];
+  try {
+
+    thresholdBreaches = await fetch('https://api.neuronwise.in/nw-ui/threshold-breaches')
+      .then(res => res.ok ? res.json() : Promise.reject("Failed to load threshold breaches"))
+      .catch(e => {
+        console.error("Error loading cities", e);
+        return [];
+      });
+    citiesCallDashboard = await fetch('https://api.neuronwise.in/nw-ui/cities')
+      .then(res => res.ok ? res.json() : Promise.reject("Failed to load cities"))
+      .catch(e => {
+        console.error("Error loading cities", e);
+        return [];
+      });
+    // Get the token from wherever you have it stored, e.g., localStorage
+    // const token = localStorage.getItem("access_token"); // or from a variable/session
+    const token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJmcmVzaCI6ZmFsc2UsImlhdCI6MTc1ODA4Nzk4MSwianRpIjoiYzQzODViMmEtOWZmMC00MTMyLWExYTktYzc1NDNjZDk1MTM3IiwidHlwZSI6ImFjY2VzcyIsInN1YiI6ImFudXJhZzY2NiIsIm5iZiI6MTc1ODA4Nzk4MSwiY3NyZiI6ImZhOWVkMzFlLWQxYmQtNGRiOC05ZDg3LTBlYTY4NGUwMWJkMCIsImV4cCI6MTc1ODEwOTU4MX0.lpaISeOR23l5F3IEY-6RbR1LkKB2K45lbRUTKtQrYgA";
+    coldStorages = await fetch('https://api.neuronwise.in/nw-ui/cold_storages', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`,  // <-- Pass the JWT token here
+        'Content-Type': 'application/json'
+      }
+    })
+    .then(res => res.ok ? res.json() : Promise.reject("Failed to load cold storages"))
+    .catch(e => {
+      console.error("Error loading cold storages", e);
+      return [];
+    });
+
+    roles = await fetch('https://api.neuronwise.in/nw-ui/roles')
+      .then(res => res.ok ? res.json() : Promise.reject("Failed to load roles"))
+      .catch(e => {
+        console.error("Error loading roles", e);
+        return [];
+      });
+
+    sensorBoxes = await fetch('https://api.neuronwise.in/nw-ui/boxes', {
+        method: 'GET',
+        headers: {
+        'Authorization': `Bearer ${token}`,  // <-- Pass the JWT token here
+        'Content-Type': 'application/json'
+        }
+      })
+      .then(res => res.ok ? res.json() : Promise.reject("Failed to load boxes"))
+      .catch(e => {
+        console.error("Error loading roles", e);
+        return [];
+      });
+    thresValues = await fetch('https://api.neuronwise.in/nw-ui/get_thresholds', {
+        method: 'GET',
+        headers: {
+        'Authorization': `Bearer ${token}`,  // <-- Pass the JWT token here
+        'Content-Type': 'application/json'
+        }
+      })
+      .then(res => res.ok ? res.json() : Promise.reject("Failed to load boxes"))
+      .catch(e => {
+        console.error("Error loading roles", e);
+        return [];
+      });
+
+    disconnectLogs = await fetch('https://api.neuronwise.in/nw-ui/disconnect-logs', {
+        method: 'GET',
+        headers: {
+        'Authorization': `Bearer ${token}`,  // <-- Pass the JWT token here
+        'Content-Type': 'application/json'
+        }
+      })
+      .then(res => res.ok ? res.json() : Promise.reject("Failed to load boxes"))
+      .catch(e => {
+        console.error("Error loading roles", e);
+        return [];
+      });
+
+  } catch (error) {
+    console.error("API fetching error", error);
+  }
+  const data = {};
+  const alertThreshold = {};
+  cities.forEach(city => {
+    data[city] = Array.from({length: 10}, () => {
+      const obj = {};
+      sensors.forEach(sensor => {
+        obj[sensor] = Math.floor(Math.random() * 100); 
+        obj[sensor+"_dis"] = Math.floor(Math.random() * 5); 
+      });
+      return obj;
+    });
+    alertThreshold[city] = {};
+    sensors.forEach(sensor => {
+      alertThreshold[city][sensor] = Math.floor(Math.random() * 5); 
+    });
+  });
+
+  function getCitySensorValues(city, sensor) {
+    return data[city].map(d => d[sensor]);
+  }
+
+  function getCitySensorDisconnections(city, sensor) {
+    return data[city].map(d => d[sensor+"_dis"]).reduce((a,b)=>a+b,0);
+  }
+
+  function getAlertCount(city, sensor) {
+    return alertThreshold[city][sensor];
+  }
+
+  function createTimeDropdown(id) {
+    return `<select id="${id}">
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+              <option value="custom">Custom</option>
+            </select>`;
+  }
+
+  container.innerHTML = `
+  <!-- Header Section -->
+<div style="
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  flex-wrap: wrap; 
+  padding: 18px 20px; 
+  border-radius: 0; 
+  background: #ffffff;
+  color: #333; 
+  border-bottom: 2px solid #ddd;
+  margin-bottom: 20px;
+">
+  <!-- Left controls -->
+  <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 16px;">
+    <select id="citySelect" 
+      style="padding: 12px 16px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; outline: none; cursor: pointer; min-width: 170px; background:white; color:#333;">
+      <option value="">Select City</option>
+      <option value="delhi">Delhi</option>
+      <option value="mumbai">Mumbai</option>
+      <option value="hyderabad">Hyderabad</option>
+      <option value="pune">Pune</option>
+    </select>
+    <input type="date" id="startDate" 
+      style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+    <input type="date" id="endDate" 
+      style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+
+    <!-- Export Dropdown (moved here right after date range) -->
+    <div style="position: relative;">
+      <button id="exportDropdownBtn" 
+        style="padding: 12px 18px; font-size: 16px; font-weight: 600; cursor: pointer; background-color: #1a73e8; color: #fff; border: none; border-radius: 6px; min-width: 150px;">
+        ⬇️ Export
+      </button>
+      <div id="exportMenu" 
+        style="display: none; position: absolute; top: 110%; left: 0; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.08); min-width: 160px; z-index: 1000; font-size: 15px; color:#333;">
+        <div class="export-option" data-type="csv" style="padding: 12px; cursor: pointer;">📄 Export as CSV</div>
+        <div class="export-option" data-type="pdf" style="padding: 12px; cursor: pointer;">📑 Export as PDF</div>
+        <div class="export-option" data-type="xls" style="padding: 12px; cursor: pointer;">📊 Export as XLS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right logo -->
+  <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+    alt="Logo" 
+    style="height: 60px; width: auto;" />
+</div>
+
+  <div class="grid">
+    <div class="card-dashboard" id="sensor-status">
+      <div class="card-header-dashboard" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span>Sensor Status</span>
+        <span class="info-icon" data-info="Shows real-time status of all sensors" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+        </div>
+        <div class="select-group-dashboard">
+          ${createTimeDropdown('sensorStatusTime')}
+        </div>
+      </div>
+    </div>
+    <div class="card-dashboard">
+      <div class="card-header-dashboard" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span>City Comparison</span>
+        <span class="info-icon" data-info="Compare sensor values across cities" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+        </div>
+        <div class="select-group-dashboard">
+          <select id="comparisonSelect">${sensors.map(s => `<option value="${s}">${s}</option>`).join('')}</select>
+          ${createTimeDropdown('comparisonTime')}
+        </div>
+      </div>
+      <canvas id="cityComparison"></canvas>
+      <div class="city-legend-dashboard" id="cityLegend"></div>
+    </div>
+    <div class="card-dashboard" id="alert-threshold">
+      <div class="card-header-dashboard" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span>Threshold Breach</span>
+        <span class="info-icon" data-info="Alerts when sensor values exceed threshold" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+        </div>
+        <div class="select-group-dashboard">
+          ${createTimeDropdown('alertThresholdTime')}
+        </div>
+      </div>
+    </div>
+    <div class="card-dashboard" id="humidity">
+      <div class="card-header-dashboard" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span>Sensor Alerts</span>
+        <span class="info-icon" data-info="Live alerts from sensors" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+        </div>
+        <div class="select-group-dashboard">
+          ${createTimeDropdown('humidityTime')}
+        </div>
+      </div>
+      <div id="sensorAlertsWrapper" style="flex:1; overflow:hidden; margin-top:10px; position:relative;">
+        <div id="sensorAlerts" style="display:flex; flex-direction:column; position:absolute; bottom:0;"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Modal -->
+  <div id="infoModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;">
+    <div style="background:#fff; padding:20px; border-radius:8px; max-width:400px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+      <p id="modalContent" style="margin-bottom:20px; font-size:16px; color:#333;"></p>
+      <button onclick="document.getElementById('infoModal').style.display='none'" style="padding:8px 16px; border:none; background:#1a73e8; color:#fff; border-radius:6px; cursor:pointer;">Close</button>
+    </div>
+  </div>
+  `;
+  
+  // Dropdown toggle
+  const exportBtn = document.getElementById("exportDropdownBtn");
+  const exportMenu = document.getElementById("exportMenu");
+  exportBtn.addEventListener("click", () => {
+    exportMenu.style.display = exportMenu.style.display === "block" ? "none" : "block";
+  });
+  document.querySelectorAll(".export-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+      alert("Exporting as " + opt.dataset.type.toUpperCase() + "...");
+      exportMenu.style.display = "none";
+    });
+  });
+   // Modal Script
+document.querySelectorAll('.info-icon').forEach(icon => {
+  icon.addEventListener('click', () => {
+    document.getElementById('modalContent').innerText = icon.getAttribute('data-info');
+    document.getElementById('infoModal').style.display = 'flex';
+  });
+});
+//const todayCounts = countTodayDisconnections(disconnectLogs, citiesCall, sensors);
+const timeframe = document.getElementById('sensorStatusTime')?.value || 'day';
+const todayCounts = countDisconnections(disconnectLogs, citiesCallDashboard, sensors, timeframe);
+document.getElementById('sensorStatusTime').addEventListener('change', () => {
+  const timeframe = document.getElementById('sensorStatusTime').value;
+  const updatedCounts = countDisconnections(disconnectLogs, citiesCallDashboard, sensors, timeframe);
+  updateSensorStatusTable(updatedCounts);
+});
+// --- Initial Load ---
+const disconnectAlertsTimeSelect = document.getElementById('humidityTime'); // Using your ID
+const initialTimeframe = disconnectAlertsTimeSelect?.value || 'day';
+
+// Use the new filter function
+const initialFilteredLogs = filterDisconnectLogs(disconnectLogs, initialTimeframe); 
+
+// Use the new display function
+updateSensorAlertsDisplay(initialFilteredLogs, citiesCallDashboard, sensors, colors); 
+
+// --- Event Listener ---
+disconnectAlertsTimeSelect.addEventListener('change', () => {
+  const timeframe = disconnectAlertsTimeSelect.value;
+  
+  // 1. Filter the master log list based on selection
+  const filteredLogs = filterDisconnectLogs(disconnectLogs, timeframe);
+  
+  // 2. Display the filtered individual logs
+  updateSensorAlertsDisplay(filteredLogs, citiesCallDashboard, sensors, colors); 
+});
+const timeframeBreaches = document.getElementById('alertThresholdTime')?.value || 'day';
+const todayCountsBreaches = countThresholdBreaches(thresholdBreaches, citiesCallDashboard, sensors, timeframe);
+document.getElementById('alertThresholdTime').addEventListener('change', () => {
+  const timeframeBreaches = document.getElementById('alertThresholdTime').value;
+  const todayUpdateCountsBreaches = countThresholdBreaches(thresholdBreaches, citiesCallDashboard, sensors, timeframeBreaches);
+  updateThresholdBreachTable(todayUpdateCountsBreaches);
+});
+function filterDisconnectLogs(logs, timeframe) {
+  const today = new Date();
+  console.log("Disconnect Logs:"+logs.length);
+  // Use UTC components for a reliable month comparison, 
+  // preventing local time zones from shifting the date across months.
+  const todayYear = today.getUTCFullYear();
+  const todayMonth = today.getUTCMonth(); // 0-indexed month (0 for Jan, 8 for Sep)
+
+  return logs.filter(log => {
+    // 1. Consistent Date Parsing: Use 'Z' to treat the timestamp as UTC
+    // This is the CRITICAL STEP to ensure logDate is parsed consistently.
+    const logDate = new Date(log.disconnected_at + 'Z');
+
+    // Skip log if the date is invalid
+    if (isNaN(logDate)) return false; 
+    
+    let include = false;
+
+    if (timeframe === 'month') {
+      // ✅ THE FIX: Compare UTC Year and UTC Month components
+      if (logDate.getUTCFullYear() === todayYear && logDate.getUTCMonth() === todayMonth) {
+        include = true;
+      }
+    } 
+    // ... logic for 'day', 'week', 'custom' goes here ...
+    
+    return include;
+  });
+}
+let table = `<table class="table-dashboard" 
+                style="width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; text-align:center;">
+    <thead>
+      <tr style="background:#f5f7fa; color:#333;">
+        <th style="padding:10px; border:1px solid #ddd; text-align:left;">Sensor</th>
+        ${citiesCallDashboard.map(city => `<th style="padding:10px; border:1px solid #ddd;">${city.name}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>`;
+sensors.forEach(sensor => {
+    table += `<tr>
+              <td style="font-weight:bold; padding:10px; border:1px solid #ddd; background:#fafafa; text-align:left;">${sensor}</td>`;
+    citiesCallDashboard.forEach(city => {
+        const count = todayCounts[city.name][sensor] || 0;
+        table += `<td style="padding:10px; border:1px solid #ddd;">${count}</td>`;
+    });
+    table += `</tr>`;
+});
+table += `</tbody></table>`;
+document.getElementById("sensor-status").insertAdjacentHTML("beforeend", table);
+
+  let alertTable = `<table class="table-dashboard" 
+                        style="width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; text-align:center;">
+    <thead>
+      <tr style="background:#f5f7fa; color:#333;">
+        <th style="padding:10px; border:1px solid #ddd; text-align:left;">Sensor</th>
+        ${cities.map(c => `<th style="padding:10px; border:1px solid #ddd;">${c}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>`;
+  sensors.forEach(sensor => {
+      alertTable += `<tr>
+                   <td style="font-weight:bold; padding:10px; border:1px solid #ddd; background:#fafafa; text-align:left;">${sensor}</td>`;
+      citiesCallDashboard.forEach(city => {
+        const count = todayCountsBreaches[city.name][sensor] || 0;
+        table += `<td style="padding:10px; border:1px solid #ddd;">${count}</td>`;
+    });
+    alertTable += `</tr>`;
+  });
+  alertTable += `</tbody></table>`;
+  document.getElementById("alert-threshold").insertAdjacentHTML("beforeend", alertTable);
+  const ctxComparison = document.getElementById("cityComparison");
+const comparisonChart = new Chart(ctxComparison, {
+  type: 'line',
+  data: { labels: [], datasets: [] },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: {
+        display: false
+      },
+      tooltip: {
+        mode: 'index',
+        intersect: false
+      }
+    },
+    scales: {
+      x: {
+        title: {
+          display: true,
+          text: 'Time'
+        }
+      },
+      y: {
+        title: {
+          display: true,
+          text: 'Sensor Value'
+        },
+        beginAtZero: true
+      }
+    },
+    maintainAspectRatio: false
+  }
+});
+
+const comparisonSelect = document.getElementById("comparisonSelect");
+const comparisonTime = document.getElementById("comparisonTime");
+
+// Add event listeners
+comparisonSelect.addEventListener("change", () => {
+  updateComparison(comparisonSelect.value, comparisonTime.value);
+});
+
+comparisonTime.addEventListener("change", () => {
+  updateComparison(comparisonSelect.value, comparisonTime.value);
+});
+function updateComparison(sensor, timeframe = 'day') {
+  const labels = generateTimeLabels(timeframe);
+  
+  comparisonChart.data.labels = labels;
+  comparisonChart.data.datasets = cities.map((city, i) => ({
+    label: city,
+    data: getCitySensorValues(city, sensor, timeframe),
+    borderColor: colors[i],
+    backgroundColor: colors[i],
+    fill: false,
+    tension: 0.35,
+    pointRadius: 2
+  }));
+  comparisonChart.update();
+
+  // Optionally keep the legend below the chart
+  const legendDiv = document.getElementById("cityLegend");
+  legendDiv.innerHTML = '';
+  cities.forEach((city, i) => {
+    legendDiv.innerHTML += `<div style="display:inline-block; margin-right:10px;">
+      <div class="color-box" style="background:${colors[i]}; display:inline-block; width:12px; height:12px; border-radius:50%; vertical-align:middle;"></div>
+      <span style="margin-left:4px;">${city}</span>
+    </div>`;
+  });
+}
+function generateTimeLabels(timeframe) {
+  const today = new Date();
+  if (timeframe === 'day') {
+    // Generate times at intervals, e.g. every hour from 09:00 to 18:00
+    const times = [];
+    for (let h = 9; h <= 18; h++) {
+      times.push(`${String(h).padStart(2,'0')}:00`);
+    }
+    return times.slice(0, 10); // limit to 10 points
+  } else if (timeframe === 'week') {
+    const labels = [];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      labels.push(d.toLocaleDateString('en-US', { day: '2-digit', month: 'short' }));
+    }
+    return labels.slice(0, 10);
+  } else if (timeframe === 'month') {
+    const labels = [];
+    for (let i = 29; i >= 0; i -= 3) { // every 3 days to limit points
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      labels.push(d.toLocaleDateString('en-US', { day: '2-digit', month: 'short' }));
+    }
+    return labels.slice(0, 10);
+  } else if (timeframe === 'custom') {
+    // Placeholder: last 10 dates
+    const labels = [];
+    for (let i = 9; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      labels.push(d.toLocaleDateString('en-US', { day: '2-digit', month: 'short' }));
+    }
+    return labels;
+  } else {
+    return Array.from({ length: 10 }, (_, i) => `${i+1}`);
+  }
+}
+function getCitySensorValues(city, sensor, timeframe) {
+  let readings = data[city];
+  if (timeframe === 'day') {
+    return readings.slice(-10).map(d => d[sensor]);
+  } else if (timeframe === 'week') {
+    return readings.slice(-7).map(d => d[sensor]);
+  } else if (timeframe === 'month') {
+    return readings.slice(-10).map(d => d[sensor]); // or more complex logic
+  } else if (timeframe === 'custom') {
+    return readings.slice(-10).map(d => d[sensor]);
+  } else {
+    return readings.map(d => d[sensor]);
+  }
+}
+
+// Initial load
+updateComparison(sensors[0], 'day');
+
+  
+  function updatePieChart(sensor) {
+    const latestValues = cities.map(city => getCitySensorValues(city, sensor).slice(-1)[0]);
+    pieChart.data.datasets[0].data = latestValues;
+    pieChart.update();
+
+    const legendDiv = document.getElementById("pieLegend");
+    legendDiv.innerHTML = '';
+    cities.forEach((city, i) => {
+      legendDiv.innerHTML += `<div><div class="color-box" style="background:${colors[i]}"></div>${city}</div>`;
+    });
+  }
+  document.getElementById("pieSelect").addEventListener("change", e => updatePieChart(e.target.value));
+  updatePieChart(sensors[0]);
+
+  new Chart(document.getElementById("history"), {
+    type: "line",
+    data: { labels: Array.from({length: 15}, (_, i) => i+1), datasets: [{label:"CO₂ Delhi",data:Array.from({length:15},()=>Math.random()*100),borderColor:"#1a73e8",fill:false,tension:0.35}] },
+    options: { responsive: true, plugins: { legend: { display: false } }, maintainAspectRatio: false },
+  });
+
+  // ---- Sensor Alerts ----
+  const sensorAlertsDiv = document.getElementById("sensorAlerts");
+  let allAlerts = [];
+  cities.forEach((city) => {
+    data[city].forEach((reading, index) => {
+      sensors.forEach((sensor, sensorIdx) => {
+        if (reading[sensor+"_dis"]>0) {
+          for(let i=0;i<reading[sensor+"_dis"];i++){
+            const time = `${10+index}:${(10*i+5)%60}`.padStart(5,'0');
+            allAlerts.push({city,sensor,time,color:colors[sensorIdx]});
+          }
+        }
+      });
+    });
+  });
+  allAlerts = allAlerts.slice(-5);
+
+  allAlerts.forEach(alert=>{
+    const div = document.createElement("div");
+    div.style.display="flex";
+    div.style.alignItems="center";
+    div.style.gap="8px";
+    div.style.padding="6px 0";
+    div.style.borderBottom="1px solid #eee";
+
+    const circle = document.createElement("div");
+    circle.style.width="12px";
+    circle.style.height="12px";
+    circle.style.borderRadius="50%";
+    circle.style.backgroundColor=alert.color;
+
+    const text = document.createElement("span");
+    text.innerHTML=`<b>${alert.sensor}</b> in ${alert.city} got disconnected at ${alert.time}`;
+
+    div.appendChild(circle);
+    div.appendChild(text);
+    sensorAlertsDiv.appendChild(div);
+  });
+
+  let position = 0;
+  const alertHeight = 34;
+  function scrollAlerts(){
+    position-=1;
+    if(Math.abs(position)>=alertHeight*allAlerts.length){
+      position=0;
+    }
+    sensorAlertsDiv.style.transform=`translateY(${position}px)`;
+    requestAnimationFrame(scrollAlerts);
+  }
+  requestAnimationFrame(scrollAlerts);
+  /**
+ * Updates the display in the sensor alerts card (id="humidity") 
+ * by showing individual disconnection log details in a scrolling list.
+ */
+function updateSensorAlertsDisplay(disconnectLogs, citiesCallDashboard, sensors, colors) {
+    const alertsContainer = document.getElementById("sensorAlerts");
+    if (!alertsContainer) return;
+
+    // 1. Defensive Check (Remains the same)
+    if (!Array.isArray(disconnectLogs) || disconnectLogs.length === 0) {
+        alertsContainer.innerHTML = `
+            <div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #777; font-size: 14px; position:absolute; width: 100%; top: 0;">
+                No sensor disconnection alerts found for the selected period.
+            </div>
+        `;
+        if (typeof cancelAnimationFrame !== 'undefined' && window.scrollAnimationId) {
+             cancelAnimationFrame(window.scrollAnimationId);
+        }
+        return;
+    }
+
+    alertsContainer.innerHTML = ''; // Clear previous content
+
+    // 2. Sort and Limit (Remains the same)
+    const sortedLogs = disconnectLogs
+        .sort((a, b) => new Date(b.disconnected_at) - new Date(a.disconnected_at))
+        .slice(0, 50);
+
+    // Helper functions (normalizeSensorName and createDisconnectAlertElement remain the same)
+    // ... (Keep these functions as they were defined in the previous response) ...
+    const normalizeSensorName = (name) => {
+        if (name.includes("Humidity")) return "Humidity";
+        if (name.includes("Temperature")) return "Temperature";
+        if (name.includes("CO2")) return "CO₂";
+        if (name.includes("NH3")) return "NH₃";
+        if (name.includes("SO2")) return "SO₂";
+        if (name.includes("H2S")) return "H₂S";
+        return name;
+    };
+    
+    const createDisconnectAlertElement = (log) => {
+        const div = document.createElement("div");
+        div.style.cssText = "display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #eee; font-size: 14px; color: #333;";
+
+        const city = citiesCallDashboard.find(c => c.id === log.city_id)?.name || 'Unknown City';
+        
+        const dateTime = new Date(log.disconnected_at);
+        const timeStr = isNaN(dateTime) 
+            ? 'Invalid Time' 
+            : dateTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+        const sensorName = normalizeSensorName(log.sensor_name); 
+        const sensorIndex = sensors.findIndex(s => s === sensorName);
+        const color = colors[sensorIndex % colors.length];
+
+        const circle = document.createElement("div");
+        circle.style.cssText = `width: 10px; height: 10px; border-radius: 50%; background-color: ${color};`;
+
+        const text = document.createElement("span");
+        text.innerHTML = `Sensor <b style="color:${color};">${sensorName}</b> disconnected in <b>${city}</b> at ${timeStr}.`;
+
+        div.appendChild(circle);
+        div.appendChild(text);
+        return div;
+    };
+    // ----------------------------------------------------------------------------
+
+    // 3. Populate and Display (THE CRITICAL FIX IS HERE)
+    
+    // Create an array of the actual DOM elements
+    const alertElements = sortedLogs.reverse().map(log => createDisconnectAlertElement(log));
+
+    // Append the list once
+    alertElements.forEach(el => alertsContainer.appendChild(el));
+    
+    // Append the list a second time to create a seamless loop
+    alertElements.forEach(el => alertsContainer.appendChild(el.cloneNode(true))); 
+    const totalElements = sortedLogs.length * 2; // Pass the doubled count
+
+    if (typeof startScrollAnimation !== 'undefined') {
+        // Pass the total count (N * 2) and the original count (N) for reset calculation
+        startScrollAnimation(alertsContainer, totalElements, sortedLogs.length); 
+    }
+}
+let animationFrameId = null;
+
+/**
+ * Initiates a seamless, continuous, upward scrolling animation.
+ * * @param {HTMLElement} element - The DOM element containing the list of alerts (id="sensorAlerts").
+ * @param {number} total_count - The total number of elements appended (N * 2).
+ * @param {number} original_count - The count of the single, original list (N).
+ * @param {number} [item_height=34] - The approximate height of one alert item.
+ */
+function startScrollAnimation(element, total_count, original_count, item_height = 34) {
+    if (window.scrollAnimationId) {
+        cancelAnimationFrame(window.scrollAnimationId);
+    }
+
+    let position = 0; 
+    // Calculate the height of the original, single set of logs. 
+    // This is the height at which the loop should reset.
+    const resetHeight = item_height * original_count;
+    
+    // Calculate the total height of the doubled content (N * 2)
+    const totalScrollableHeight = item_height * total_count;
+    
+    const wrapperHeight = element.parentElement.clientHeight;
+
+    // Only scroll if the content is taller than the wrapper (use the original count for this check)
+    if (resetHeight <= wrapperHeight) {
+        element.style.transform = `translateY(0px)`;
+        return; 
+    }
+
+    function scrollAlerts() {
+        position -= 0.5; // Scroll speed
+        
+        // 🚨 CRITICAL FIX: Reset position when the height of the original list has scrolled past
+        if (Math.abs(position) >= resetHeight) {
+            position = 0; 
+        }
+        
+        element.style.transform = `translateY(${position}px)`;
+        window.scrollAnimationId = requestAnimationFrame(scrollAlerts);
+    }
+
+    window.scrollAnimationId = requestAnimationFrame(scrollAlerts);
+}
+ function updateSensorStatusTable(counts) {
+  const container = document.getElementById("sensor-status");
+  const oldTable = container.querySelector("table");
+  if (oldTable) oldTable.remove();
+
+  let table = `
+              <table class="table-dashboard" 
+                style="width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; text-align:center;">
+    <thead>
+      <tr style="background:#f5f7fa; color:#333;">
+        <th style="padding:10px; border:1px solid #ddd; text-align:left;">Sensor</th>
+        ${citiesCallDashboard.map(city => `<th style="padding:10px; border:1px solid #ddd;">${city.name}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>`;
+  sensors.forEach(sensor => {
+    table += `<tr>
+              <td style="font-weight:bold; padding:10px; border:1px solid #ddd; background:#fafafa; text-align:left;">${sensor}</td>`;
+    citiesCallDashboard.forEach(city => {
+        const count = counts[city.name][sensor] || 0;
+        table += `<td style="padding:10px; border:1px solid #ddd;">${count}</td>`;
+    });
+    table += `</tr>`;
+  });
+  table += `</tbody></table>`;
+  container.insertAdjacentHTML("beforeend", table);
+}
+  function updateThresholdBreachTable(counts) {
+  const container = document.getElementById("alert-threshold");
+  const oldTable = container.querySelector("table");
+  if (oldTable) oldTable.remove();
+
+  let table = `
+              <table class="table-dashboard" 
+                style="width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; text-align:center;">
+    <thead>
+      <tr style="background:#f5f7fa; color:#333;">
+        <th style="padding:10px; border:1px solid #ddd; text-align:left;">Sensor</th>
+        ${citiesCallDashboard.map(city => `<th style="padding:10px; border:1px solid #ddd;">${city.name}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>`;
+  sensors.forEach(sensor => {
+    table += `<tr>
+              <td style="font-weight:bold; padding:10px; border:1px solid #ddd; background:#fafafa; text-align:left;">${sensor}</td>`;
+    citiesCallDashboard.forEach(city => {
+        const count = counts[city.name][sensor] || 0;
+        table += `<td style="padding:10px; border:1px solid #ddd;">${count}</td>`;
+    });
+    table += `</tr>`;
+  });
+  table += `</tbody></table>`;
+  container.insertAdjacentHTML("beforeend", table);
+}
+  /**
+ * Filters raw disconnection logs based on the selected timeframe.
+ * This should be called before updating the display.
+ */
+function filterDisconnectLogs(logs, timeframe) {
+  const today = new Date();
+  const MS_PER_DAY = 1000 * 60 * 60 * 24;
+  
+  // Use UTC components for reliable comparison
+  const todayYear = today.getUTCFullYear();
+  const todayMonth = today.getUTCMonth(); 
+
+  return logs.filter(log => {
+    // Robust Date Parsing: Use 'Z' to treat the timestamp as UTC
+    const logDate = new Date(log.disconnected_at + 'Z');
+
+    if (isNaN(logDate)) return false; 
+    
+    let include = false;
+
+    if (timeframe === 'day') {
+      // Check if Year, Month, and Date (day of month) match
+      include = logDate.getUTCFullYear() === todayYear &&
+                logDate.getUTCMonth() === todayMonth &&
+                logDate.getUTCDate() === today.getUTCDate();
+                
+    } else if (timeframe === 'week') {
+      // Calculate the date 7 days ago at midnight UTC
+      const weekAgo = new Date(today.getTime() - (7 * MS_PER_DAY));
+      
+      // We only need to check if the log date is more recent than the start of the week.
+      // We strip the time for a clean start-of-week comparison.
+      const startOfWeek = new Date(weekAgo.toISOString().split('T')[0] + 'Z');
+      
+      include = logDate >= startOfWeek; 
+
+    } else if (timeframe === 'month') {
+      // Compare UTC Year and UTC Month components
+      include = logDate.getUTCFullYear() === todayYear &&
+                logDate.getUTCMonth() === todayMonth;
+                
+    } else if (timeframe === 'custom') {
+      include = true; // Show all logs for now
+    }
+
+    return include;
+  });
+}
+// Count sensor disconnections for today by city and sensor
+function countTodayDisconnections(disconnectLogs, citiesCallDashboard, sensors) {
+  const todayDate = getTodayDate();
+  const result = {};
+
+  // Initialize the structure
+  citiesCallDashboard.forEach(city => {
+    result[city.name] = {};
+    sensors.forEach(sensor => {
+      result[city.name][sensor] = 0;
+    });
+  });
+
+  disconnectLogs.forEach(log => {
+  const logDate = log.disconnected_at.split('T')[0];
+  if (logDate === todayDate) {
+    const city = citiesCallDashboard.find(c => c.id === log.city_id);
+    if (city && result[city.name] !== undefined) {
+      const sensorKey = normalizeSensorName(log.sensor_name);
+      if (sensors.includes(sensorKey)) {
+        result[city.name][sensorKey] = (result[city.name][sensorKey] || 0) + 1;
+      }
+    }
+  }
+});
+}
+
+function countDisconnections(disconnectLogs, citiesCallDashboard, sensors, timeframe) {
+  const today = new Date();
+  const todayDate = getTodayDate();
+  const result = {};
+
+  // Initialize the structure
+  citiesCallDashboard.forEach(city => {
+    result[city.name] = {};
+    sensors.forEach(sensor => {
+      result[city.name][sensor] = 0;
+    });
+  });
+
+  disconnectLogs.forEach(log => {
+    const logDateStr = log.disconnected_at.split('T')[0];
+    const logDate = new Date(logDateStr);
+
+    let include = false;
+
+    if (timeframe === 'day') {
+      include = logDateStr === todayDate;
+    } else if (timeframe === 'week') {
+      const weekAgo = new Date(today);
+      weekAgo.setDate(today.getDate() - 7);
+      include = logDate >= weekAgo && logDate <= today;
+    } else if (timeframe === 'month') {
+      include = logDate.getFullYear() === today.getFullYear() &&
+                logDate.getMonth() === today.getMonth();
+    }
+
+    if (include) {
+      const city = citiesCallDashboard.find(c => c.id === log.city_id);
+      if (city && result[city.name] !== undefined) {
+        const sensorKey = normalizeSensorName(log.sensor_name);
+        if (sensors.includes(sensorKey)) {
+          result[city.name][sensorKey] = (result[city.name][sensorKey] || 0) + 1;
+        }
+      }
+    }
+  });
+
+
+  return result;
+}
+function countThresholdBreaches(thresholdBreaches ,citiesCallDashboard, sensors, timeframe) {
+  const today = new Date();
+  const todayDate = getTodayDate();
+  const result = {};
+
+  // Initialize the structure
+  citiesCallDashboard.forEach(city => {
+    result[city.name] = {};
+    sensors.forEach(sensor => {
+      result[city.name][sensor] = 0;
+    });
+  });
+
+  thresholdBreaches.forEach(log => {
+    const logDateStr = log.timestamp.split('T')[0];
+    const logDate = new Date(logDateStr);
+
+    let include = false;
+
+    if (timeframe === 'day') {
+      include = logDateStr === todayDate;
+    } else if (timeframe === 'week') {
+      const weekAgo = new Date(today);
+      weekAgo.setDate(today.getDate() - 7);
+      include = logDate >= weekAgo && logDate <= today;
+    } else if (timeframe === 'month') {
+      include = logDate.getFullYear() === today.getFullYear() &&
+                logDate.getMonth() === today.getMonth();
+    }
+
+    if (include) {
+      const city = citiesCallDashboard.find(c => c.id === log.city_id);
+      if (city && result[city.name] !== undefined) {
+        const sensorKey = normalizeSensorName(log.sensor_name);
+        if (sensors.includes(sensorKey)) {
+          result[city.name][sensorKey] = (result[city.name][sensorKey] || 0) + 1;
+        }
+      }
+    }
+  });
+
+
+  return result;
+}
+
+}
+// Utility: Get today's date in 'YYYY-MM-DD' format
+function getTodayDate() {
+  const today = new Date();
+  const year = today.getFullYear();
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const day = String(today.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+function normalizeSensorName(name) {
+    return name.replace(" Sensor", "")
+               .replace("CO2","CO₂")   // normalize CO2 to subscript ₂
+               .replace("SO2","SO₂")
+               .replace("NH3","NH₃")
+               .replace("H2S","H₂S")
+               .trim();
+}
+// async function loadAlerts() {
+
+//     const container = document.getElementById("main-content");
+//     container.innerHTML = `
+//         <!-- Header -->
+//         <div style="display:flex; justify-content:space-between; align-items:center; padding:18px 20px; background:#fff; border-bottom:2px solid #ddd; margin-bottom:20px; flex-wrap:wrap;">
+//             <div style="display:flex; gap:16px; flex-wrap:wrap;">
+//                 <select id="citySelect" style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px;">
+//                     <option value="">All Cities</option>
+//                     <option value="3">Delhi</option>
+//                     <option value="4">Mumbai</option>
+//                     <option value="5">Hyderabad</option>
+//                     <option value="6">Pune</option>
+//                 </select>
+//                 <input type="date" id="startDate" style="padding:12px 16px; border:1px solid #ccc; border-radius:6px;">
+//                 <input type="date" id="endDate" style="padding:12px 16px; border:1px solid #ccc; border-radius:6px;">
+//             </div>
+//             <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" style="height:60px;">
+//         </div>
+
+//         <!-- Dashboard Cards -->
+//         <div id="dashboard-alerts" style="
+//             display:grid;
+//             grid-template-columns: repeat(3, 1fr);
+//             gap:20px;
+//             width: 100%;
+//             padding: 0 20px;
+//             box-sizing: border-box;
+//         "></div>
+//     `;
+
+//     const dashboard = document.getElementById('dashboard-alerts');
+//     const sensors = ['CO2', 'NH3', 'SO2', 'H2S', 'Temperature', 'Humidity'];
+//     const citySelect = document.getElementById('citySelect');
+
+//     const allData = await fetch('https://api.neuronwise.in/nw-ui/threshold-breaches')
+//         .then(res => res.json())
+//         .catch(err => { console.error(err); return []; });
+
+//     // function filterData(sensorName, cityId, startDate, endDate) {
+//     //     return allData.filter(d => {
+//     //         const ts = new Date(d.timestamp);
+//     //         return d.sensor_name === sensorName &&
+//     //                (!cityId || d.city_id == cityId) &&
+//     //                ts >= startDate && ts <= endDate;
+//     //     });
+//     // }
+//     function filterData(sensorName, cityId, startDate, endDate) {
+//       const startTimestamp = startDate.getTime(); // Get milliseconds for proper comparison
+//       const endTimestamp = endDate.getTime(); // Get milliseconds for proper comparison
+
+//       return allData.filter(d => {
+//         const ts = new Date(d.timestamp).getTime(); // Convert breach timestamp to milliseconds
+//         return d.sensor_name === sensorName &&
+//                (!cityId || d.city_id == cityId) &&
+//                ts >= startTimestamp && ts <= endTimestamp; // ✅ Use numerical comparison
+//         });
+//     }
+//     function groupDataByTimeOrDate(data, viewType) {
+//         const map = {};
+//         data.forEach(d => {
+//             const ts = new Date(d.timestamp);
+//             let label;
+//             if(viewType === 'today') {
+//                 label = ts.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+//             } else {
+//                 label = ts.toLocaleDateString([], {day:'2-digit', month:'short'});
+//             }
+//             map[label] = (map[label] || 0) + 1;
+//         });
+//         return map;
+//     }
+
+//     sensors.forEach(sensor => {
+//         const card = document.createElement('div');
+//         card.className = 'card-alerts';
+//         card.style = `
+//             background:#fff;
+//             border-radius:12px;
+//             padding:20px;
+//             box-shadow:0 4px 10px rgba(0,0,0,0.08);
+//             display:flex;
+//             flex-direction:column;
+//             justify-content:flex-start;
+//             width: 100%;       /* full width of grid cell */
+//             height: 400px;     /* fixed height */
+//             box-sizing: border-box;
+//         `;
+
+//         card.innerHTML = `
+//             <h2 style="margin:0 0 12px 0; font-size:18px; color:#333;">${sensor} Alerts</h2>
+//             <div class="sensor-filter-alerts" style="display:flex; gap:10px; align-items:center; flex-wrap:nowrap; margin-bottom:12px;">
+//                 <select class="timeFilter" style="padding:8px 12px; border-radius:6px; border:1px solid #ccc; font-size:14px; flex-shrink:0;">
+//                   <option value="1">Today</option>
+//                   <option value="7">Last 7 Days</option>
+//                   <option value="30" selected>Last 30 Days</option>
+//                   <option value="custom">Custom</option>
+//                 </select>
+//                 <input type="date" class="customStartDate" style="display:none; padding:8px; border-radius:6px; border:1px solid #ccc; width:140px; flex-shrink:0;">
+//                 <input type="date" class="customEndDate" style="display:none; padding:8px; border-radius:6px; border:1px solid #ccc; width:140px; flex-shrink:0;">
+//             </div>
+
+//             <div class="alert-count" style="display:flex; align-items:center; margin-bottom:12px;">
+//                 <div class="icon" style="font-size:28px; color:#f44336;">⚠️</div>
+//                 <div class="breach-count" style="font-size:22px; font-weight:600; margin-left:10px;">0</div>
+//                 <div class="days-text" style="margin-left:10px; font-size:14px; color:#666;"></div>
+//             </div>
+//             <canvas id="${sensor}-chart" style="width:100%; flex-grow:1;"></canvas>
+//         `;
+
+//         dashboard.appendChild(card);
+
+//         const timeFilter = card.querySelector('.timeFilter');
+//         const breachDiv = card.querySelector('.breach-count');
+//         const daysText = card.querySelector('.days-text');
+//         const customStart = card.querySelector('.customStartDate');
+//         const customEnd = card.querySelector('.customEndDate');
+
+//         function updateChart(viewDays, customStartDate=null, customEndDate=null) {
+//             let start, end, viewType;
+
+//             if(customStartDate && customEndDate){
+//                 start = customStartDate;
+//                 end = new Date(customEndDate);
+//                 end.setHours(23,59,59,999);
+//                 viewType = 'custom';
+//                 daysText.textContent = `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+//             } else if(viewDays === 1) {
+//                 start = new Date();
+//                 start.setHours(0,0,0,0);
+//                 end = new Date();
+//                 end.setHours(23,59,59,999);
+//                 viewType = 'today';
+//                 daysText.textContent = 'Today';
+//             } else {
+//                 end = new Date();
+//                 start = new Date();
+//                 start.setDate(end.getDate() - (viewDays-1));
+//                 start.setHours(0,0,0,0);
+//                 end.setHours(23,59,59,999);
+//                 viewType = 'past';
+//                 daysText.textContent = `Last ${viewDays} Days`;
+//             }
+
+//             const cityId = citySelect.value;
+//             const filtered = filterData(sensor, cityId, start, end);
+//             const grouped = groupDataByTimeOrDate(filtered, viewType);
+
+//             const labels = Object.keys(grouped).sort((a,b) => new Date(a) - new Date(b));
+//             const counts = Object.values(grouped);
+//             breachDiv.textContent = counts.reduce((a,b)=>a+b,0);
+
+//             const ctx = card.querySelector('canvas').getContext('2d');
+//             if(card.chart) card.chart.destroy();
+//             card.chart = new Chart(ctx, {
+//                 type: 'line',
+//                 data: {
+//                     labels: labels,
+//                     datasets: [{
+//                         label: sensor,
+//                         data: counts,
+//                         fill: false,
+//                         borderColor: '#2196f3',
+//                         tension: 0.3,
+//                         pointRadius: 3,
+//                         borderWidth: 2
+//                     }]
+//                 },
+//                 options: {
+//                     responsive: true,
+//                     maintainAspectRatio:false,
+//                     plugins: { 
+//                         legend: { display: false },
+//                         tooltip: {
+//                             mode: 'index',
+//                             intersect: false,
+//                         } 
+//                     },
+//                     scales: { 
+//                         y: { 
+//                             beginAtZero: true, 
+//                             precision:0 
+//                         },
+//                         x: { // 🛠️ Fix for X-axis congestion
+//                             ticks: {
+//                                 maxRotation: 45, // Rotate labels to fit
+//                                 minRotation: 45,
+//                                 autoSkip: true, // Let Chart.js skip labels if needed
+//                                 maxTicksLimit: viewType === 'today' ? 12 : 15 // Limit ticks for today/past/custom view
+//                             },
+//                             grid: {
+//                                 display: false // Clean up the background
+//                             }
+//                         }
+//                     }
+//                 }
+//                 // options: {
+//                 //     responsive: true,
+//                 //     maintainAspectRatio:false,
+//                 //     plugins: { legend: { display: false } },
+//                 //     scales: { y: { beginAtZero: true, precision:0 } }
+//                 // }
+//             });
+//         }
+
+//         timeFilter.addEventListener('change', () => {
+//             if(timeFilter.value === 'custom') {
+//                 customStart.style.display = 'inline-block';
+//                 customEnd.style.display = 'inline-block';
+//             } else {
+//                 customStart.style.display = 'none';
+//                 customEnd.style.display = 'none';
+//                 updateChart(parseInt(timeFilter.value));
+//             }
+//         });
+
+//         customEnd.addEventListener('change', () => {
+//             if(customStart.value && customEnd.value){
+//                 const start = new Date(customStart.value);
+//                 const end = new Date(customEnd.value);
+//                 updateChart(null, start, end);
+//             }
+//         });
+
+//         citySelect.addEventListener('change', () => updateChart(parseInt(timeFilter.value)));
+
+//         // Initial chart
+//         updateChart(30);
+//     });
+// }
+async function loadAlerts() {
+    const container = document.getElementById("main-content");
+    container.innerHTML = `
+        <style>
+            /* General Styles for the Alerts Dashboard */
+            .alerts-dashboard-container {
+                padding: 20px;
+                background-color: #f8faff; 
+                min-height: calc(100vh - 80px);
+            }
+
+            .alerts-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 18px 25px;
+                background: #ffffff;
+                border-radius: 12px;
+                margin-bottom: 25px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+                flex-wrap: wrap;
+                gap: 15px;
+            }
+
+            .alerts-header .filters {
+                display: flex;
+                gap: 15px;
+                flex-wrap: wrap;
+            }
+
+            .alerts-header select,
+            .alerts-header input[type="date"] {
+                padding: 12px 18px;
+                font-size: 15px;
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                background-color: #fefefe;
+                color: #333;
+                appearance: none;
+                background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%20164.7c-4.7%204.7-12.3%204.7-17%200L146.2%2035.7%2022.4%20164.7c-4.7%204.7-12.3%204.7-17%200l-5.6-5.6c-4.7-4.7-4.7-12.3%200-17L137.2%20.4c4.7-4.7%2012.3-4.7%2017%200l120.4%20120.4c4.7%204.7%204.7%2012.3%200%2017l-5.6%205.6z%22%2F%3E%3C%2Fsvg%3E');
+                background-repeat: no-repeat;
+                background-position: right 15px center;
+                background-size: 10px;
+                padding-right: 35px;
+                min-width: 140px;
+            }
+            .alerts-header input[type="date"]::-webkit-calendar-picker-indicator {
+                opacity: 0;
+                cursor: pointer;
+            }
+
+
+            .dashboard-alerts-grid {
+                /* MODIFIED: Increased min-width to ensure only 3 cards fit in a row */
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(380px, 1fr)); 
+                gap: 25px;
+                padding: 0 20px;
+                box-sizing: border-box;
+            }
+
+            .alert-card {
+                background: #ffffff;
+                border-radius: 12px;
+                padding: 10px;
+                box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+                display: flex;
+                flex-direction: column;
+                justify-content: flex-start;
+                height: 370px; /* DECREASED FURTHER for a compact look */
+                box-sizing: border-box;
+                border: 1px solid #f0f0f0;
+                transition: transform 0.2s ease, box-shadow 0.2s ease;
+            }
+
+            .alert-card:hover {
+                transform: translateY(-5px);
+                box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+            }
+
+            .alert-card h2 {
+                margin: 0 0 15px 0;
+                font-size: 19px;
+                color: #2c3e50;
+                font-weight: 600;
+            }
+
+            .sensor-filter-alerts {
+                display: flex;
+                gap: 10px;
+                align-items: center;
+                flex-wrap: wrap;
+                margin-bottom: 15px;
+            }
+
+            .sensor-filter-alerts select,
+            .sensor-filter-alerts input[type="date"] {
+                padding: 9px 14px;
+                border-radius: 8px;
+                border: 1px solid #e0e0e0;
+                font-size: 14px;
+                background-color: #fefefe;
+                color: #444;
+                flex-shrink: 0;
+                max-width: 150px;
+                min-width: 100px;
+                appearance: none;
+                background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%20164.7c-4.7%204.7-12.3%204.7-17%200L146.2%2035.7%2022.4%20164.7c-4.7%204.7-12.3%204.7-17%200l-5.6-5.6c-4.7-4.7-4.7-12.3%200-17L137.2%20.4c4.7-4.7%2012.3-4.7%2017%200l120.4%20120.4c4.7%204.7%204.7%2012.3%200%2017l-5.6%205.6z%22%2F%3E%3C%2Fsvg%3E');
+                background-repeat: no-repeat;
+                background-position: right 10px center;
+                background-size: 8px;
+                padding-right: 30px;
+            }
+            .sensor-filter-alerts input[type="date"]::-webkit-calendar-picker-indicator {
+                opacity: 0;
+                cursor: pointer;
+            }
+
+            .alert-count-section {
+                /* MODIFIED: Reduced padding for a smaller vertical size */
+                display: flex;
+                align-items: center;
+                margin-bottom: 10px; /* Reduced margin */
+                background-color: #fff3e0;
+                border-radius: 8px;
+                padding: 8px 12px; /* Reduced padding */
+                border: 1px solid #ffe0b2;
+            }
+
+            .alert-count-section .icon {
+                font-size: 20px; /* Reduced icon size */
+                color: #ff9800;
+                margin-right: 8px; /* Reduced margin */
+            }
+
+            .alert-count-section .breach-count {
+                font-size: 20px; /* Reduced breach count font size */
+                font-weight: 700;
+                color: #e65100;
+            }
+
+            .alert-count-section .days-text {
+                margin-left: 8px;
+                font-size: 13px; /* Reduced days text font size */
+                color: #555;
+            }
+
+            .chart-container {
+                position: relative;
+                flex-grow: 1;
+                width: 100%;
+                min-height: 180px;
+            }
+            .chart-container canvas {
+                width: 100% !important;
+                height: 100% !important;
+            }
+
+            @media (max-width: 768px) {
+                /* ... (Media query styles for header and filters remain the same) ... */
+                .alerts-header {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    padding: 15px;
+                }
+                .alerts-header .filters {
+                    flex-direction: column;
+                    width: 100%;
+                    gap: 10px;
+                }
+                .alerts-header select,
+                .alerts-header input[type="date"] {
+                    width: 100%;
+                    max-width: none;
+                }
+                .alerts-header img {
+                    margin-top: 15px;
+                }
+                .dashboard-alerts-grid {
+                    padding: 0 15px;
+                    grid-template-columns: 1fr;
+                }
+                .alert-card {
+                    height: auto;
+                    min-height: 340px; /* Updated min-height to match new height */
+                }
+                .sensor-filter-alerts {
+                    flex-direction: column;
+                    align-items: flex-start;
+                    width: 100%;
+                }
+                .sensor-filter-alerts select,
+                .sensor-filter-alerts input[type="date"] {
+                    width: 100%;
+                    max-width: none;
+                }
+            }
+        </style>
+
+        <div class="alerts-dashboard-container">
+            <div class="alerts-header">
+                <div class="filters">
+                    <select id="citySelect">
+                        <option value="">All Cities</option>
+                        <option value="3">Delhi</option>
+                        <option value="4">Mumbai</option>
+                        <option value="5">Hyderabad</option>
+                        <option value="6">Pune</option>
+                    </select>
+                    <input type="date" id="startDate">
+                    <input type="date" id="endDate">
+                </div>
+                <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" style="height:60px;">
+            </div>
+
+            <div id="dashboard-alerts" class="dashboard-alerts-grid"></div>
+        </div>
+    `;
+
+    const dashboard = document.getElementById('dashboard-alerts');
+    const sensors = ['CO2', 'NH3', 'SO2', 'H2S', 'Temperature', 'Humidity'];
+    const citySelect = document.getElementById('citySelect');
+    const globalStartDateInput = document.getElementById('startDate');
+    const globalEndDateInput = document.getElementById('endDate');
+
+    // Fetch data once
+    const allData = await fetch('https://api.neuronwise.in/nw-ui/threshold-breaches')
+        .then(res => res.json())
+        .catch(err => { console.error('Error fetching threshold breaches:', err); return []; });
+
+    // Function to filter data based on sensor, city, and date range
+    function filterData(sensorName, cityId, startDate, endDate) {
+        const startTimestamp = startDate.getTime();
+        const endTimestamp = endDate.getTime();
+
+        return allData.filter(d => {
+            const ts = new Date(d.timestamp).getTime();
+            return d.sensor_name === sensorName &&
+                   (!cityId || d.city_id == cityId) &&
+                   ts >= startTimestamp && ts <= endTimestamp;
+        });
+    }
+
+    // Function to group data by time or date
+    function groupDataByTimeOrDate(data, viewType) {
+        const map = {};
+        data.forEach(d => {
+            const ts = new Date(d.timestamp);
+            let label;
+            if(viewType === 'today') {
+                label = ts.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            } else {
+                label = ts.toLocaleDateString('en-US', {day:'2-digit', month:'short'});
+            }
+            map[label] = (map[label] || 0) + 1;
+        });
+
+        // Ensure labels are sorted for chart rendering
+        const sortedKeys = Object.keys(map).sort((a,b) => {
+            if (viewType === 'today') {
+                return a.localeCompare(b);
+            } else {
+                const dateA = new Date(a + ' 2000');
+                const dateB = new Date(b + ' 2000');
+                return dateA.getTime() - dateB.getTime();
+            }
+        });
+
+        const sortedMap = {};
+        sortedKeys.forEach(key => {
+            sortedMap[key] = map[key];
+        });
+        return sortedMap;
+    }
+
+
+    // Function to apply global filters to all charts
+    function applyGlobalDateFilters() {
+        const globalStart = globalStartDateInput.value;
+        const globalEnd = globalEndDateInput.value;
+
+        dashboard.querySelectorAll('.alert-card').forEach(card => {
+            const timeFilter = card.querySelector('.timeFilter');
+            const customStartInput = card.querySelector('.customStartDate');
+            const customEndInput = card.querySelector('.customEndDate');
+
+            const cardUpdateChart = card.__updateChart__;
+
+            if (globalStart && globalEnd) {
+                timeFilter.value = 'custom';
+                customStartInput.value = globalStart;
+                customEndInput.value = globalEnd;
+                customStartInput.style.display = 'inline-block';
+                customEndInput.style.display = 'inline-block';
+                
+                if (cardUpdateChart) {
+                    cardUpdateChart(null, globalStart, globalEnd);
+                }
+            } else {
+                if (timeFilter.value === 'custom') { 
+                    timeFilter.value = '30';
+                }
+                customStartInput.style.display = 'none';
+                customEndInput.style.display = 'none';
+                
+                if (cardUpdateChart) {
+                    cardUpdateChart(parseInt(timeFilter.value));
+                }
+            }
+        });
+    }
+
+    globalStartDateInput.addEventListener('change', applyGlobalDateFilters);
+    globalEndDateInput.addEventListener('change', applyGlobalDateFilters);
+
+
+    // Process each sensor to create a card and chart
+    sensors.forEach(sensor => {
+        const card = document.createElement('div');
+        card.className = 'alert-card';
+
+        card.innerHTML = `
+            <h2>${sensor} Alerts</h2>
+            <div class="sensor-filter-alerts">
+                <select class="timeFilter">
+                  <option value="1">Today</option>
+                  <option value="7">Last 7 Days</option>
+                  <option value="30" selected>Last 30 Days</option>
+                  <option value="custom">Custom</option>
+                </select>
+                <input type="date" class="customStartDate" style="display:none;">
+                <input type="date" class="customEndDate" style="display:none;">
+            </div>
+
+            <div class="alert-count-section">
+                <div class="icon">⚠️</div>
+                <div class="breach-count">0</div>
+                <div class="days-text"></div>
+            </div>
+            <div class="chart-container">
+                <canvas id="${sensor}-chart"></canvas>
+            </div>
+        `;
+
+        dashboard.appendChild(card);
+
+        const timeFilter = card.querySelector('.timeFilter');
+        const breachDiv = card.querySelector('.breach-count');
+        const daysText = card.querySelector('.days-text');
+        const customStartInput = card.querySelector('.customStartDate');
+        const customEndInput = card.querySelector('.customEndDate');
+        const ctx = card.querySelector('canvas').getContext('2d');
+        let chartInstance = null;
+
+        const cardUpdateChart = (viewDays, customStartDate = null, customEndDate = null) => {
+            let start, end, viewType;
+
+            // Determine date range and view type (logic is sound, kept as is)
+            if(customStartDate && customEndDate){
+                start = new Date(customStartDate);
+                start.setHours(0, 0, 0, 0);
+                end = new Date(customEndDate);
+                end.setHours(23, 59, 59, 999);
+                viewType = 'custom';
+                daysText.textContent = `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+            } else if(viewDays === 1) {
+                start = new Date();
+                start.setHours(0,0,0,0);
+                end = new Date();
+                end.setHours(23,59,59,999);
+                viewType = 'today';
+                daysText.textContent = 'Today';
+            } else {
+                end = new Date();
+                start = new Date();
+                start.setDate(end.getDate() - (viewDays-1));
+                start.setHours(0,0,0,0);
+                end.setHours(23,59,59,999);
+                viewType = 'past';
+                daysText.textContent = `Last ${viewDays} Days`;
+            }
+
+            const cityId = citySelect.value;
+            const filtered = filterData(sensor, cityId, start, end);
+            const grouped = groupDataByTimeOrDate(filtered, viewType);
+
+            const labels = Object.keys(grouped);
+            const counts = Object.values(grouped);
+            breachDiv.textContent = counts.reduce((a,b)=>a+b,0);
+
+            if(chartInstance) {
+                chartInstance.destroy();
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: sensor + ' Alerts',
+                        data: counts,
+                        fill: true,
+                        backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                        borderColor: '#36a2eb',
+                        tension: 0.4,
+                        pointRadius: 4,
+                        pointBackgroundColor: '#36a2eb',
+                        pointBorderColor: '#fff',
+                        pointHoverRadius: 6,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { mode: 'index', intersect: false, bodyFont: { size: 14 }, titleFont: { size: 14, weight: 'bold' }, padding: 10 }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            precision: 0,
+                            grid: { color: '#eee' },
+                            ticks: { font: { size: 12 }, color: '#555' }
+                        },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                maxRotation: 20, /* MODIFIED: Reduced rotation from 45 to 20 */
+                                minRotation: 20,
+                                autoSkip: true,
+                                maxTicksLimit: viewType === 'today' ? 8 : (viewType === 'past' ? 7 : 5), /* MODIFIED: Reduced max ticks */
+                                font: { size: 10 }, /* MODIFIED: Reduced font size from 12 to 10 */
+                                color: '#555'
+                            }
+                        }
+                    }
+                }
+            });
+        };
+
+        card.__updateChart__ = cardUpdateChart;
+
+        // Event listeners for card filters (kept as is)
+        timeFilter.addEventListener('change', () => {
+            if(timeFilter.value === 'custom') {
+                customStartInput.style.display = 'inline-block';
+                customEndInput.style.display = 'inline-block';
+                if(customStartInput.value && customEndInput.value) {
+                     cardUpdateChart(null, customStartInput.value, customEndInput.value);
+                }
+            } else {
+                customStartInput.style.display = 'none';
+                customEndInput.style.display = 'none';
+                cardUpdateChart(parseInt(timeFilter.value));
+            }
+        });
+
+        customEndInput.addEventListener('change', () => {
+            if(customStartInput.value && customEndInput.value){
+                cardUpdateChart(null, customStartInput.value, customEndInput.value);
+            }
+        });
+
+        citySelect.addEventListener('change', () => {
+            if(timeFilter.value === 'custom' && customStartInput.value && customEndInput.value) {
+                cardUpdateChart(null, customStartInput.value, customEndInput.value);
+            } else {
+                cardUpdateChart(parseInt(timeFilter.value));
+            }
+        });
+
+        cardUpdateChart(30);
+    });
+}    
+// const container = document.getElementById("main-content");
+//     container.innerHTML = `
+//         <style>
+//             /* General Styles for the Alerts Dashboard */
+//             .alerts-dashboard-container {
+//                 padding: 20px;
+//                 background-color: #f8faff; /* Light background for the dashboard area */
+//                 min-height: calc(100vh - 80px); /* Adjust based on actual header height */
+//             }
+
+//             .alerts-header {
+//                 display: flex;
+//                 justify-content: space-between;
+//                 align-items: center;
+//                 padding: 18px 25px;
+//                 background: #ffffff;
+//                 border-radius: 12px;
+//                 margin-bottom: 25px;
+//                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+//                 flex-wrap: wrap;
+//                 gap: 15px;
+//             }
+
+//             .alerts-header .filters {
+//                 display: flex;
+//                 gap: 15px;
+//                 flex-wrap: wrap;
+//             }
+
+//             .alerts-header select,
+//             .alerts-header input[type="date"] {
+//                 padding: 12px 18px;
+//                 font-size: 15px;
+//                 border: 1px solid #e0e0e0;
+//                 border-radius: 8px;
+//                 background-color: #fefefe;
+//                 color: #333;
+//                 appearance: none; /* Remove default arrow */
+//                 background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%20164.7c-4.7%204.7-12.3%204.7-17%200L146.2%2035.7%2022.4%20164.7c-4.7%204.7-12.3%204.7-17%200l-5.6-5.6c-4.7-4.7-4.7-12.3%200-17L137.2%20.4c4.7-4.7%2012.3-4.7%2017%200l120.4%20120.4c4.7%204.7%204.7%2012.3%200%2017l-5.6%205.6z%22%2F%3E%3C%2Fsvg%3E');
+//                 background-repeat: no-repeat;
+//                 background-position: right 15px center;
+//                 background-size: 10px;
+//                 padding-right: 35px; /* Make space for custom arrow */
+//                 min-width: 140px;
+//             }
+//             .alerts-header input[type="date"]::-webkit-calendar-picker-indicator {
+//                 opacity: 0; /* Hide default date picker icon */
+//                 cursor: pointer;
+//             }
+
+//             .dashboard-alerts-grid {
+//                 /* MODIFIED: Changed the minimum column width to enforce a maximum of 3 cards. 
+//                    We calculate 100% / 3 = ~33.3%, so a minmax of 350px works well for 3 cards on typical desktop screens. */
+//                 display: grid;
+//                 grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); 
+//                 gap: 25px;
+//                 padding: 0 20px;
+//                 box-sizing: border-box;
+//             }
+//              .alert-card {
+//                 /* MODIFIED: Decreased height for a more compact look. */
+//                 background: #ffffff;
+//                 border-radius: 12px;
+//                 padding: 25px;
+//                 box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+//                 display: flex;
+//                 flex-direction: column;
+//                 justify-content: flex-start;
+//                 height: 360px; /* DECREASED: Original was 420px */
+//                 box-sizing: border-box;
+//                 border: 1px solid #f0f0f0;
+//                 transition: transform 0.2s ease, box-shadow 0.2s ease;
+//             }
+
+//             .alert-card:hover {
+//                 transform: translateY(-5px);
+//                 box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+//             }
+
+//             .alert-card h2 {
+//                 margin: 0 0 15px 0;
+//                 font-size: 19px;
+//                 color: #2c3e50; /* Darker, more professional color */
+//                 font-weight: 600;
+//             }
+
+//             .sensor-filter-alerts {
+//                 display: flex;
+//                 gap: 10px;
+//                 align-items: center;
+//                 flex-wrap: wrap; /* Allow wrapping for filters */
+//                 margin-bottom: 15px;
+//             }
+
+//             .sensor-filter-alerts select,
+//             .sensor-filter-alerts input[type="date"] {
+//                 padding: 9px 14px;
+//                 border-radius: 8px;
+//                 border: 1px solid #e0e0e0;
+//                 font-size: 14px;
+//                 background-color: #fefefe;
+//                 color: #444;
+//                 flex-shrink: 0;
+//                 max-width: 150px;
+//                 min-width: 100px;
+//                 appearance: none;
+//                 background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%22292.4%22%20height%3D%22292.4%22%3E%3Cpath%20fill%3D%22%23000000%22%20d%3D%22M287%20164.7c-4.7%204.7-12.3%204.7-17%200L146.2%2035.7%2022.4%20164.7c-4.7%204.7-12.3%204.7-17%200l-5.6-5.6c-4.7-4.7-4.7-12.3%200-17L137.2%20.4c4.7-4.7%2012.3-4.7%2017%200l120.4%20120.4c4.7%204.7%204.7%2012.3%200%2017l-5.6%205.6z%22%2F%3E%3C%2Fsvg%3E');
+//                 background-repeat: no-repeat;
+//                 background-position: right 10px center;
+//                 background-size: 8px;
+//                 padding-right: 30px;
+//             }
+//             .sensor-filter-alerts input[type="date"]::-webkit-calendar-picker-indicator {
+//                 opacity: 0;
+//                 cursor: pointer;
+//             }
+
+//             .alert-count-section {
+//                 display: flex;
+//                 align-items: center;
+//                 margin-bottom: 15px;
+//                 background-color: #fff3e0; /* Light orange background */
+//                 border-radius: 8px;
+//                 padding: 10px 15px;
+//                 border: 1px solid #ffe0b2;
+//             }
+
+//             .alert-count-section .icon {
+//                 font-size: 26px; /* Slightly smaller for better fit */
+//                 color: #ff9800; /* Orange color for warning */
+//                 margin-right: 12px;
+//             }
+
+//             .alert-count-section .breach-count {
+//                 font-size: 24px;
+//                 font-weight: 700;
+//                 color: #e65100; /* Darker orange for emphasis */
+//             }
+
+//             .alert-count-section .days-text {
+//                 margin-left: 10px;
+//                 font-size: 14px;
+//                 color: #555;
+//             }
+
+//             .chart-container {
+//                 position: relative;
+//                 flex-grow: 1;
+//                 width: 100%;
+//                 min-height: 180px; /* Minimum height for chart to render */
+//             }
+//             .chart-container canvas {
+//                 width: 100% !important;
+//                 height: 100% !important;
+//             }
+
+//             @media (max-width: 768px) {
+//                 .alerts-header {
+//                     flex-direction: column;
+//                     align-items: flex-start;
+//                     padding: 15px;
+//                 }
+//                 .alerts-header .filters {
+//                     flex-direction: column;
+//                     width: 100%;
+//                     gap: 10px;
+//                 }
+//                 .alerts-header select,
+//                 .alerts-header input[type="date"] {
+//                     width: 100%;
+//                     max-width: none;
+//                 }
+//                 .alerts-header img {
+//                     margin-top: 15px;
+//                 }
+//                 .dashboard-alerts-grid {
+//                     padding: 0 15px;
+//                     grid-template-columns: 1fr; /* Keep 1 column for small screens */
+//                 }
+//                 .alert-card {
+//                     height: auto; 
+//                     min-height: 360px; /* Ensure min-height matches new height */
+//                 }
+//                 .sensor-filter-alerts {
+//                     flex-direction: column;
+//                     align-items: flex-start;
+//                     width: 100%;
+//                 }
+//                 .sensor-filter-alerts select,
+//                 .sensor-filter-alerts input[type="date"] {
+//                     width: 100%;
+//                     max-width: none;
+//                 }
+//             }
+//         </style>
+
+//         <div class="alerts-dashboard-container">
+//             <div class="alerts-header">
+//                 <div class="filters">
+//                     <select id="citySelect">
+//                         <option value="">All Cities</option>
+//                         <option value="3">Delhi</option>
+//                         <option value="4">Mumbai</option>
+//                         <option value="5">Hyderabad</option>
+//                         <option value="6">Pune</option>
+//                     </select>
+//                     <input type="date" id="startDate">
+//                     <input type="date" id="endDate">
+//                 </div>
+//                 <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" style="height:60px;">
+//             </div>
+
+//             <div id="dashboard-alerts" class="dashboard-alerts-grid"></div>
+//         </div>
+//     `;
+
+//     const dashboard = document.getElementById('dashboard-alerts');
+//     const sensors = ['CO2', 'NH3', 'SO2', 'H2S', 'Temperature', 'Humidity'];
+//     const citySelect = document.getElementById('citySelect');
+//     const globalStartDateInput = document.getElementById('startDate');
+//     const globalEndDateInput = document.getElementById('endDate');
+
+//     // Fetch data once
+//     const allData = await fetch('https://api.neuronwise.in/nw-ui/threshold-breaches')
+//         .then(res => res.json())
+//         .catch(err => { console.error('Error fetching threshold breaches:', err); return []; });
+
+//     // Function to filter data based on sensor, city, and date range
+//     function filterData(sensorName, cityId, startDate, endDate) {
+//         const startTimestamp = startDate.getTime();
+//         const endTimestamp = endDate.getTime();
+
+//         return allData.filter(d => {
+//             const ts = new Date(d.timestamp).getTime();
+//             return d.sensor_name === sensorName &&
+//                    (!cityId || d.city_id == cityId) &&
+//                    ts >= startTimestamp && ts <= endTimestamp;
+//         });
+//     }
+
+//     // Function to group data by time or date
+//     function groupDataByTimeOrDate(data, viewType) {
+//         const map = {};
+//         data.forEach(d => {
+//             const ts = new Date(d.timestamp);
+//             let label;
+//             if(viewType === 'today') {
+//                 label = ts.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+//             } else {
+//                 label = ts.toLocaleDateString('en-US', {day:'2-digit', month:'short'});
+//             }
+//             map[label] = (map[label] || 0) + 1;
+//         });
+
+//         // Ensure labels are sorted for chart rendering
+//         const sortedKeys = Object.keys(map).sort((a,b) => {
+//             if (viewType === 'today') {
+//                 // Simple time string comparison for 'today'
+//                 return a.localeCompare(b);
+//             } else { // 'past' or 'custom' (date)
+//                 // Assuming 'DD Mon' format, parse to comparable dates (using a dummy year)
+//                 const dateA = new Date(a + ' 2000');
+//                 const dateB = new Date(b + ' 2000');
+//                 return dateA.getTime() - dateB.getTime();
+//             }
+//         });
+
+//         const sortedMap = {};
+//         sortedKeys.forEach(key => {
+//             sortedMap[key] = map[key];
+//         });
+//         return sortedMap;
+//     }
+
+
+//     // Function to apply global filters to all charts
+//     function applyGlobalDateFilters() {
+//         const globalStart = globalStartDateInput.value;
+//         const globalEnd = globalEndDateInput.value;
+
+//         dashboard.querySelectorAll('.alert-card').forEach(card => {
+//             const timeFilter = card.querySelector('.timeFilter');
+//             const customStartInput = card.querySelector('.customStartDate');
+//             const customEndInput = card.querySelector('.customEndDate');
+
+//             // Find the updateChart function stored on the card
+//             const cardUpdateChart = card.__updateChart__;
+
+//             if (globalStart && globalEnd) {
+//                 // Set card filters to match global filters
+//                 timeFilter.value = 'custom';
+//                 customStartInput.value = globalStart;
+//                 customEndInput.value = globalEnd;
+//                 customStartInput.style.display = 'inline-block';
+//                 customEndInput.style.display = 'inline-block';
+                
+//                 if (cardUpdateChart) {
+//                     cardUpdateChart(null, globalStart, globalEnd);
+//                 }
+//             } else {
+//                 // If global dates are cleared, reset card to its default/previous state (e.g., '30 days')
+//                 if (timeFilter.value === 'custom') { 
+//                     timeFilter.value = '30';
+//                 }
+//                 customStartInput.style.display = 'none';
+//                 customEndInput.style.display = 'none';
+                
+//                 if (cardUpdateChart) {
+//                     cardUpdateChart(parseInt(timeFilter.value));
+//                 }
+//             }
+//         });
+//     }
+
+//     globalStartDateInput.addEventListener('change', applyGlobalDateFilters);
+//     globalEndDateInput.addEventListener('change', applyGlobalDateFilters);
+
+
+//     // Process each sensor to create a card and chart
+//     sensors.forEach(sensor => {
+//         const card = document.createElement('div');
+//         card.className = 'alert-card';
+
+//         card.innerHTML = `
+//             <h2>${sensor} Alerts</h2>
+//             <div class="sensor-filter-alerts">
+//                 <select class="timeFilter">
+//                   <option value="1">Today</option>
+//                   <option value="7">Last 7 Days</option>
+//                   <option value="30" selected>Last 30 Days</option>
+//                   <option value="custom">Custom</option>
+//                 </select>
+//                 <input type="date" class="customStartDate" style="display:none;">
+//                 <input type="date" class="customEndDate" style="display:none;">
+//             </div>
+
+//             <div class="alert-count-section">
+//                 <div class="icon">⚠️</div>
+//                 <div class="breach-count">0</div>
+//                 <div class="days-text"></div>
+//             </div>
+//             <div class="chart-container">
+//                 <canvas id="${sensor}-chart"></canvas>
+//             </div>
+//         `;
+
+//         dashboard.appendChild(card);
+
+//         const timeFilter = card.querySelector('.timeFilter');
+//         const breachDiv = card.querySelector('.breach-count');
+//         const daysText = card.querySelector('.days-text');
+//         const customStartInput = card.querySelector('.customStartDate');
+//         const customEndInput = card.querySelector('.customEndDate');
+//         const ctx = card.querySelector('canvas').getContext('2d');
+//         let chartInstance = null; // To store chart instance
+
+//         // Define the updateChart function in the correct scope
+//         const cardUpdateChart = (viewDays, customStartDate = null, customEndDate = null) => {
+//             let start, end, viewType;
+
+//             // Determine date range and view type
+//             if(customStartDate && customEndDate){
+//                 start = new Date(customStartDate);
+//                 start.setHours(0, 0, 0, 0); // Normalize start of day
+//                 end = new Date(customEndDate);
+//                 end.setHours(23, 59, 59, 999); // Normalize end of day
+//                 viewType = 'custom';
+//                 daysText.textContent = `${start.toLocaleDateString()} - ${end.toLocaleDateString()}`;
+//             } else if(viewDays === 1) { // Today
+//                 start = new Date();
+//                 start.setHours(0,0,0,0);
+//                 end = new Date();
+//                 end.setHours(23,59,59,999);
+//                 viewType = 'today';
+//                 daysText.textContent = 'Today';
+//             } else { // Last X Days
+//                 end = new Date();
+//                 start = new Date();
+//                 start.setDate(end.getDate() - (viewDays-1));
+//                 start.setHours(0,0,0,0);
+//                 end.setHours(23,59,59,999);
+//                 viewType = 'past';
+//                 daysText.textContent = `Last ${viewDays} Days`;
+//             }
+
+//             const cityId = citySelect.value;
+//             // Use the FIXED filterData function
+//             const filtered = filterData(sensor, cityId, start, end);
+//             const grouped = groupDataByTimeOrDate(filtered, viewType);
+
+//             const labels = Object.keys(grouped);
+//             const counts = Object.values(grouped);
+//             breachDiv.textContent = counts.reduce((a,b)=>a+b,0);
+
+//             // Destroy previous chart instance if it exists
+//             if(chartInstance) {
+//                 chartInstance.destroy();
+//             }
+
+//             // Create new chart instance with improved options
+//             chartInstance = new Chart(ctx, {
+//                 type: 'line',
+//                 data: {
+//                     labels: labels,
+//                     datasets: [{
+//                         label: sensor + ' Alerts',
+//                         data: counts,
+//                         fill: true,
+//                         backgroundColor: 'rgba(54, 162, 235, 0.2)',
+//                         borderColor: '#36a2eb',
+//                         tension: 0.4,
+//                         pointRadius: 4,
+//                         pointBackgroundColor: '#36a2eb',
+//                         pointBorderColor: '#fff',
+//                         pointHoverRadius: 6,
+//                         borderWidth: 2
+//                     }]
+//                 },
+//                 options: {
+//                     responsive: true,
+//                     maintainAspectRatio: false,
+//                     plugins: {
+//                         legend: { display: false },
+//                         tooltip: { mode: 'index', intersect: false, bodyFont: { size: 14 }, titleFont: { size: 14, weight: 'bold' }, padding: 10 }
+//                     },
+//                     scales: {
+//                         y: {
+//                             beginAtZero: true,
+//                             precision: 0,
+//                             grid: { color: '#eee' },
+//                             ticks: { font: { size: 12 }, color: '#555' }
+//                         },
+//                         x: {
+//                             grid: { display: false },
+//                             ticks: {
+//                                 maxRotation: 45,
+//                                 minRotation: 45,
+//                                 autoSkip: true,
+//                                 maxTicksLimit: viewType === 'today' ? 12 : (viewType === 'past' ? 10 : 7),
+//                                 font: { size: 12 },
+//                                 color: '#555'
+//                             }
+//                         }
+//                     }
+//                 }
+//             });
+//         };
+
+//         // Store the function on the card element for access by global filters
+//         card.__updateChart__ = cardUpdateChart;
+
+//         // Event listeners for card filters
+//         timeFilter.addEventListener('change', () => {
+//             if(timeFilter.value === 'custom') {
+//                 customStartInput.style.display = 'inline-block';
+//                 customEndInput.style.display = 'inline-block';
+//                 // Only update if both custom dates are set
+//                 if(customStartInput.value && customEndInput.value) {
+//                      cardUpdateChart(null, customStartInput.value, customEndInput.value);
+//                 }
+//             } else {
+//                 customStartInput.style.display = 'none';
+//                 customEndInput.style.display = 'none';
+//                 cardUpdateChart(parseInt(timeFilter.value));
+//             }
+//         });
+
+//         customEndInput.addEventListener('change', () => {
+//             if(customStartInput.value && customEndInput.value){
+//                 cardUpdateChart(null, customStartInput.value, customEndInput.value);
+//             }
+//         });
+
+//         // Global city filter: Re-apply current date/time selection on city change
+//         citySelect.addEventListener('change', () => {
+//             if(timeFilter.value === 'custom' && customStartInput.value && customEndInput.value) {
+//                 cardUpdateChart(null, customStartInput.value, customEndInput.value);
+//             } else {
+//                 cardUpdateChart(parseInt(timeFilter.value));
+//             }
+//         });
+
+//         // Initial chart load
+//         cardUpdateChart(30);
+//     });
+// } // ⬅️ THIS CLOSING BRACE WAS MISSING
+    window.onload = loadHome;
+  </script>
+<script>
+const MAX_POINTS_B = 10;
+let chartsB = {};
+let chartIntervals = {};
+
+function loadCity(city) {
+  const container = document.getElementById("main-content");
+  container.innerHTML = `
+    <!-- Header Section -->
+<div style="
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  flex-wrap: wrap; 
+  padding: 18px 20px; 
+  border-radius: 0; 
+  background: #ffffff;
+  color: #333; 
+  border-bottom: 2px solid #ddd;
+  margin-bottom: 20px;
+">
+  <!-- Left controls -->
+  <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 16px;">
+    <select id="citySelect" 
+      style="padding: 12px 16px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; outline: none; cursor: pointer; min-width: 170px; background:white; color:#333;">
+      <option value="">Select City</option>
+      <option value="delhi">Delhi</option>
+      <option value="mumbai">Mumbai</option>
+      <option value="hyderabad">Hyderabad</option>
+      <option value="pune">Pune</option>
+    </select>
+    <input type="date" id="startDate" 
+      style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+    <input type="date" id="endDate" 
+      style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+
+    <!-- Export Dropdown (moved here right after date range) -->
+    <div style="position: relative;">
+      <button id="exportDropdownBtn" 
+        style="padding: 12px 18px; font-size: 16px; font-weight: 600; cursor: pointer; background-color: #1a73e8; color: #fff; border: none; border-radius: 6px; min-width: 150px;">
+        ⬇️ Export
+      </button>
+      <div id="exportMenu" 
+        style="display: none; position: absolute; top: 110%; left: 0; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.08); min-width: 160px; z-index: 1000; font-size: 15px; color:#333;">
+        <div class="export-option" data-type="csv" style="padding: 12px; cursor: pointer;">📄 Export as CSV</div>
+        <div class="export-option" data-type="pdf" style="padding: 12px; cursor: pointer;">📑 Export as PDF</div>
+        <div class="export-option" data-type="xls" style="padding: 12px; cursor: pointer;">📊 Export as XLS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right logo -->
+  <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+    alt="Logo" 
+    style="height: 60px; width: auto;" />
+</div>
+
+
+    <!-- Dashboard rows -->
+    <div id="threshold-row" style="margin-top: 20px; display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap: 16px;"></div>
+    <div id="status-row" style="margin-top: 20px; display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap: 16px;"></div>
+  `;
+
+  // Dropdown toggle
+  const exportBtn = document.getElementById("exportDropdownBtn");
+  const exportMenu = document.getElementById("exportMenu");
+  exportBtn.addEventListener("click", () => {
+    exportMenu.style.display = exportMenu.style.display === "block" ? "none" : "block";
+  });
+
+  // --- CARDS ---
+  const cardContainer = document.createElement("div");
+  cardContainer.className = "card-container";
+  cardContainer.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:10px;height:800px;";
+  container.appendChild(cardContainer);
+
+  const sensorsB = [
+    { name: "sensor1", label: "CO2", unit: "ppm" },
+    { name: "sensor2", label: "NH3", unit: "ppm" },
+    { name: "sensor3", label: "SO2", unit: "ppm" },
+    { name: "sensor4", label: "H2S", unit: "ppm" },
+    { name: "sensor5", label: "Temperature", unit: "°C" },
+    { name: "sensor6", label: "Humidity", unit: "%" }
+  ];
+
+  sensorsB.forEach(sensor => {
+    const card = document.createElement("div");
+    card.className = "card";
+    // card.style.cssText = "min-height:150px;padding:10px;border:1px solid #ddd;border-radius:8px;position:relative;transition:background 0.3s ease;";
+    card.style.cssText = "min-height:150px;padding:10px;border:1px solid #ddd;border-radius:8px;position:relative;transition:background 0.3s ease;";
+    card.id = `${sensor.name}-card`;
+
+    card.innerHTML = `
+      <h3>${sensor.label}</h3>
+      <p>
+        Reading: <span id="${sensor.name}-value">--</span> ${sensor.unit} 
+        <span id="${sensor.name}-status" style="
+          float:right;
+          padding:5px 12px;
+          border-radius:20px;
+          font-size:14px;
+          font-weight:bold;
+          color:#fff;
+          background:#ddd;
+          display:inline-block;
+        ">Offline</span>
+      </p>
+      <canvas id="chart-${sensor.name}" style="height:200px;"></canvas>
+    `;
+    cardContainer.appendChild(card);
+
+    // Dummy data
+    const labels = [];
+    const data = [];
+    for (let i = 0; i < MAX_POINTS_B; i++) {
+      labels.push(`T-${MAX_POINTS_B - i}`);
+      data.push(Math.floor(Math.random() * 100));
+    }
+
+    chartsB[sensor.name] = new Chart(document.getElementById(`chart-${sensor.name}`), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: sensor.label,
+          data: data,
+          borderColor: "#1abc9c",
+          borderWidth: 1,           // thinner line
+          fill: false,
+          tension: 0.35,            // smooth curve
+          pointRadius: 2,           // small circles
+          pointHoverRadius: 4,      // highlight on hover
+          pointBackgroundColor: "#1abc9c"
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false, // disable animation to prevent flicker
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+
+    // Initial values
+    updateSensorCard(sensor.name, data[data.length - 1]);
+
+    // Live update every 2s
+    if (chartIntervals[sensor.name]) clearInterval(chartIntervals[sensor.name]);
+    chartIntervals[sensor.name] = setInterval(() => {
+      const chart = chartsB[sensor.name];
+      const newVal = Math.floor(Math.random() * 100);
+      const newLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+      chart.data.labels.push(newLabel);
+      chart.data.datasets[0].data.push(newVal);
+
+      if (chart.data.labels.length > MAX_POINTS_B) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+      }
+
+      chart.update("none"); // no animation, prevents flicker
+      updateSensorCard(sensor.name, newVal);
+    }, 2000);
+  });
+}
+
+// Update card values + status
+function updateSensorCard(sensorName, value) {
+  const valueEl = document.getElementById(`${sensorName}-value`);
+  const statusEl = document.getElementById(`${sensorName}-status`);
+  const cardEl = document.getElementById(`${sensorName}-card`);
+
+  valueEl.textContent = value;
+  const isLive = Math.random() > 0.2; // 80% live, 20% offline
+  statusEl.textContent = isLive ? "Live" : "Offline";
+  statusEl.style.background = isLive ? "#1abc9c" : "#e74c3c";
+
+  // Card background when offline
+  cardEl.style.background = isLive ? "#fff" : "#ffe5e5";
+}
+
+// Dummy export functions
+function exportCSV() { alert("Export CSV clicked!"); }
+function exportPDF() { alert("Export PDF clicked!"); }
+async function loadUsers() {
+const response = await fetch("https://api.neuronwise.in/nw-ui/users");
+
+    if (!response.ok) {
+      throw new Error("Network response was not ok " + response.statusText);
+    }
+
+    // Convert response to JSON
+    const users = await response.json();
+
+    // Store values in an array
+    let userArray = [];
+    users.forEach(user => {
+      userArray.push({
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role_id: user.role_id,
+        city_id: user.city_id,
+        created_at: user.created_at,
+        mobile_no: user.mobile_no,
+        parent_id: user.parent_id
+      });
+    });
+
+    console.log("User Array:", userArray);
+
+    const container = document.getElementById("main-content");
+    container.innerHTML = `
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 16px 20px; background: #ffffff; color: #333; border-bottom: 2px solid #ddd; margin-bottom: 20px;">
+        <h2 style="font-size:18px; font-weight:600;">User Management</h2>
+        <div style="position: relative;">
+            <button id="actionDropdownBtn" style="padding: 8px 14px; background-color: #1a73e8; color: white; border: none; border-radius: 6px; font-size: 14px; cursor: pointer;">
+                Actions ⬇️
+            </button>
+            <div id="actionMenu" style="display: none; position: absolute; right: 0; top: 110%; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.1); min-width: 160px; z-index: 1000;">
+                <div class="action-option" data-action="defineRole" style="padding: 10px 14px; cursor: pointer;">⚙️ Define Role</div>
+                <div class="action-option" data-action="addUser" style="padding: 10px 14px; cursor: pointer;">➕ Add User</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="user-table-container" style="padding: 0 20px;"></div>
+
+    <!-- Add User Modal -->
+    <div id="addUserModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center;">
+        <div style="background: white; padding: 20px; border-radius: 12px; max-width: 500px; width: 90%; box-shadow: 0 4px 12px rgba(0,0,0,0.2); position: relative;">
+            <span id="closeAddUserModal" style="position:absolute; top:10px; right:14px; font-size:20px; cursor:pointer;">❌</span>
+            <h3 style="color:#1a73e8; margin-bottom:20px;">Add New User</h3>
+            <form id="addUserForm">
+                <div style="margin-bottom:12px;">
+                    <label>Name</label>
+                    <input type="text" id="userName" class="form-control" placeholder="Enter name" required />
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label>Email</label>
+                    <input type="email" id="userEmail" class="form-control" placeholder="Enter email" required />
+                </div>
+
+                <div style="margin-bottom:12px;">
+                    <label>Mobile</label>
+                    <input type="mobile" id="userMobile" class="form-control" placeholder="Enter mobile no." required />
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label>Password</label>
+                    <input type="password" id="userPassword" class="form-control" placeholder="Enter password" required />
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label>Role</label>
+                    <select id="userRole" class="form-select">
+                    </select>
+                </div>
+                <div style="margin-bottom:12px;">
+                    <label>City</label>
+                    <select id="userCity" class="form-select">
+                    </select>
+                </div>
+                <button type="submit" style="padding: 10px 18px; background-color: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 14px;">
+                    Save User
+                </button>
+            </form>
+        </div>
+    </div>
+    `;
+
+    const actionBtn = document.getElementById("actionDropdownBtn");
+    const actionMenu = document.getElementById("actionMenu");
+    const addUserModal = document.getElementById("addUserModal");
+    const closeAddUserModal = document.getElementById("closeAddUserModal");
+    const addUserForm = document.getElementById("addUserForm");
+    function populateAddUserRoles() {
+        const userRoleDropdown = document.getElementById("userRole");
+        userRoleDropdown.innerHTML = ""; // clear existing options
+
+        roles.forEach(role => {
+            const opt = document.createElement("option");
+            opt.value = role.id;   // use role id as value
+            opt.textContent = role.name;
+            userRoleDropdown.appendChild(opt);
+        });
+    }
+
+    // Call this function after modal is in DOM
+    populateAddUserRoles();
+    function populateAddUserCities() {
+        const cityDropdown = document.getElementById("userCity");
+        cityDropdown.innerHTML = ""; // clear existing
+
+        citiesCall.forEach(city => {
+            const opt = document.createElement("option");
+            opt.value = city.id;      // use city id as value
+            opt.textContent = city.name;
+            cityDropdown.appendChild(opt);
+        });
+    }
+
+    // Call this after modal is in DOM
+    populateAddUserCities();
+
+    actionBtn.addEventListener("click", () => {
+        actionMenu.style.display = actionMenu.style.display === "block" ? "none" : "block";
+    });
+
+    window.addEventListener("click", (e) => {
+        if (!e.target.closest("#actionDropdownBtn")) {
+            actionMenu.style.display = "none";
+        }
+    });
+
+    document.querySelectorAll(".action-option").forEach(opt => {
+        opt.addEventListener("click", () => {
+            const action = opt.getAttribute("data-action");
+            if (action === "defineRole") {
+                alert("Define Role functionality not implemented.");
+            } else if (action === "addUser") {
+                addUserModal.style.display = "flex";
+            }
+            actionMenu.style.display = "none";
+        });
+    });
+
+    closeAddUserModal.addEventListener("click", () => {
+        addUserModal.style.display = "none";
+    });
+    addUserForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById("userName").value.trim();
+    const email = document.getElementById("userEmail").value.trim();
+    const password = document.getElementById("userPassword").value.trim();
+    const role_id = parseInt(document.getElementById("userRole").value); // role id from dropdown
+    const city_id = parseInt(document.getElementById("userCity").value); // city id from dropdown
+    const mobile_no = document.getElementById("userMobile") ? document.getElementById("userMobile").value.trim() : ""; // optional input if exists
+    const parent_id = 8; // hardcoded
+
+    if (!name || !email || !password || !role_id || !city_id) {
+        alert("Please fill all required fields!");
+        return;
+    }
+
+    const newUserData = {
+        name,
+        email,
+        password,
+        role_id,
+        city_id,
+        mobile_no,
+        parent_id
+    };
+
+    try {
+        const response = await fetch("https://api.neuronwise.in/nw-ui/users", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(newUserData)
+        });
+
+        const result = await response.json();
+
+        if (response.ok && !result.error) {
+            // Success
+            Swal.fire({
+                icon: "success",
+                title: "User added successfully!",
+                text: `${name} has been added.`,
+                confirmButtonColor: "#1a73e8"
+            });
+
+            // Reset form and hide modal
+            addUserForm.reset();
+            addUserModal.style.display = "none";
+
+            // Reload users table
+            loadUsers();
+        } else {
+            Swal.fire({
+                icon: "error",
+                title: "Failed to add user",
+                text: result.error || "Something went wrong",
+                confirmButtonColor: "#e74c3c"
+            });
+        }
+
+    } catch (err) {
+        console.error(err);
+        Swal.fire({
+            icon: "error",
+            title: "Network or server error",
+            text: "Could not save user",
+            confirmButtonColor: "#e74c3c"
+        });
+    }
+});
+
+    // Mock API to fetch users
+    function fetchUsers() {
+        return new Promise((resolve) => {
+            setTimeout(() => {
+                resolve([
+                    { id: 1, name: "Alice", email: "alice@example.com", mobile: "676767667", role: "admin", access: true, canUpdateAccess: true },
+                    { id: 2, name: "Bob", email: "bob@example.com", mobile: "676767667", role: "user", access: false, canUpdateAccess: false },
+                    { id: 3, name: "Charlie", email: "charlie@example.com", mobile: "676767667", role: "user", access: true, canUpdateAccess: true },
+                ]);
+            }, 300);
+        });
+    }
+
+    const tableContainer = document.getElementById("user-table-container");
+    tableContainer.innerHTML = `<div class="text-center py-3">Loading users...</div>`;
+
+    fetchUsers().then(users => {
+        let table = `
+        <table class="table table-bordered table-striped">
+            <thead class="table-dark">
+                <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Mobile</th>
+                    <th>Access</th>
+                    <th>Update Access</th>
+                </tr>
+            </thead>
+            <tbody>
+        `;
+        
+        const parentid = 8; // Hardcoded parent/admin id
+        const useridToUpdate = 9; // Hardcoded target user id
+        userArray.forEach(user => {
+            console.log("user data:"+user);
+
+            // Find the role object for this user
+            const roleObj = roles.find(r => r.id === user.role_id);
+            const roleName = roleObj ? roleObj.name : "Unknown";
+
+            // Example: you can still use a badge for access
+            // For example, role_id 1 = Admin (Granted), else Denied
+            const accessBadge = (roleName.toLowerCase() === "admin") 
+              ? `<span class="badge bg-success">${roleName}</span>` 
+              : `<span class="badge bg-danger">${roleName}</span>`;
+            table += `
+                <tr>
+                    <td>${user.name}</td>
+                    <td>${user.email}</td>
+                    <td>${user.mobile_no}</td>
+                    <td>${accessBadge}</td>
+                    <td>
+                      <div style="position: relative; display: inline-block;">
+                        <button class="btn btn-sm btn-outline-primary update-btn">${roleName} ⬇️</button>
+                        <div class="update-dropdown" style="display:none; position: absolute; top: 110%; left: 0; background: #fff; border:1px solid #ccc; border-radius:6px; box-shadow:0 2px 8px rgba(0,0,0,0.1); min-width:120px; z-index:1000;">
+                            ${roles.map(r => `
+                                <div class="role-option" data-role="${r.id}" style="padding:6px 12px; cursor:pointer;">
+                                    ${r.name}
+                                </div>`).join('')}
+                        </div>
+                      </div>
+                    </td>
+
+
+                </tr>
+            `;
+        });
+
+        table += `</tbody></table>`;
+        tableContainer.innerHTML = table;
+
+        // Add dropdown functionality
+        // document.querySelectorAll(".update-btn").forEach(btn => {
+        //     btn.addEventListener("click", (e) => {
+        //         const dropdown = btn.nextElementSibling;
+        //         dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
+        //     });
+        // });
+
+        // // Update role on selection
+        // document.querySelectorAll(".role-option").forEach(opt => {
+        //     opt.addEventListener("click", (e) => {
+        //         const selectedRole = opt.getAttribute("data-role");
+        //         const btn = opt.closest('td').querySelector('.update-btn');
+        //         btn.textContent = selectedRole + " ⬇️";
+        //         opt.parentElement.style.display = "none";
+        //         alert(`Role updated to ${selectedRole}`);
+        //         // Here you can call API to save role change
+        //     });
+        // });
+        
+    // Dropdown toggle
+    document.querySelectorAll(".update-btn").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const dropdown = btn.nextElementSibling;
+            dropdown.style.display = dropdown.style.display === "block" ? "none" : "block";
+        });
+    });
+        document.querySelectorAll(".role-option").forEach(opt => {
+    opt.addEventListener("click", async (e) => {
+        const selectedRole = parseInt(opt.getAttribute("data-role"));
+        const btn = opt.closest('td').querySelector('.update-btn');
+
+        const useridToUpdate = parseInt(opt.closest('tr').dataset.userid); 
+        const parentid = 8; // your admin user
+
+        // Show loading alert
+        Swal.fire({
+            title: 'Updating role...',
+            allowOutsideClick: false,
+            didOpen: () => {
+                Swal.showLoading();
+            }
+        });
+
+        try {
+            const response = await fetch("https://api.neuronwise.in/nw-ui/update_user_role", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userid: useridToUpdate,
+                    parentid: parentid,
+                    new_role_id: selectedRole
+                })
+            });
+
+            const result = await response.json();
+
+            Swal.close(); // close loading
+
+            if (response.ok && !result.error) {
+                // Success
+                const roleName = roles.find(r => r.id === selectedRole).name;
+                btn.textContent = roleName + " ⬇️";
+
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    icon: 'success',
+                    title: result.message
+                });
+            } else {
+                // Error returned by API
+                Swal.fire({
+                    toast: true,
+                    position: 'top-end',
+                    showConfirmButton: false,
+                    timer: 3000,
+                    timerProgressBar: true,
+                    icon: 'error',
+                    title: result.error || 'Failed to update role'
+                });
+            }
+
+        } catch (err) {
+            Swal.close(); // close loading
+            Swal.fire({
+                toast: true,
+                position: 'top-end',
+                showConfirmButton: false,
+                timer: 3000,
+                timerProgressBar: true,
+                icon: 'error',
+                title: 'Network or server error'
+            });
+            console.error(err);
+        }
+
+        // Close the dropdown
+        opt.parentElement.style.display = "none";
+    });
+});
+
+        // Close dropdown if clicked outside
+        window.addEventListener("click", (e) => {
+            document.querySelectorAll(".update-dropdown").forEach(dd => {
+                if (!dd.contains(e.target) && !dd.previousElementSibling.contains(e.target)) {
+                    dd.style.display = "none";
+                }
+            });
+        });
+
+    }).catch(err => {
+        tableContainer.innerHTML = `<div class="alert alert-danger">Failed to load users.</div>`;
+        console.error("Error loading users:", err);
+    });
+}
+
+</script>
+
+<script>
+const API_CITIES = "https://api.neuronwise.in/nw-ui/cities";
+
+// Function to load cities from API
+async function loadCities() {
+  try {
+    const res = await fetch(API_CITIES);
+    const data = await res.json(); // API returns array of city objects
+    const cityList = document.getElementById("city-list");
+    cityList.innerHTML = ""; // Clear existing list
+
+    data.forEach(city => {
+      const li = document.createElement("li");
+      li.textContent = city.name;
+      li.style.cursor = "pointer";
+      li.onclick = () => loadCity(city.name); // Your existing function
+      cityList.appendChild(li);
+    });
+  } catch (err) {
+    console.error("Failed to load cities:", err);
+  }
+}
+
+// Call on page load
+loadCities();
+
+</script>
+<!-- Put this AFTER Chart.js and chartjs-adapter-date-fns scripts -->
+<!-- <script>
+(function(){
+  /* ---------- CONFIG ---------- */
+  const sensors = [
+    { name: "CO2", key: "sensor1", color: "#1976d2" },
+    { name: "NH3", key: "sensor2", color: "#f29900" },
+    { name: "SO2", key: "sensor3", color: "#34a853" },
+    { name: "H2S", key: "sensor4", color: "#ea4335" },
+    { name: "Temperature", key: "sensor5", color: "#9c27b0" },
+    { name: "Humidity", key: "sensor6", color: "#00bcd4" }
+  ];
+  const ranges = ["1D","1W","1M","1Y"];
+  let cities = [];
+  let chartA = null;
+
+  /* ---------- Fetch city list ---------- */
+  async function loadCities(){
+    try{
+      const r = await fetch("https://api.neuronwise.in/nw-ui/cities");
+      const arr = await r.json();
+      if(Array.isArray(arr)){
+        cities = arr.map(c=>({ name:c.name, id:c.id }));
+      }
+    }catch(e){ console.error("City fetch error:", e); }
+    if(cities.length===0){
+      // fallback if API empty
+      cities = [{name:"Default", id:1}];
+    }
+  }
+
+  /* ---------- Fetch sensor data ---------- */
+  async function fetchSensorData(cityName, sensorName){
+    try {
+      const res = await fetch("https://api.neuronwise.in/nw-ui/sensor_readings");
+      const raw = await res.json();
+      if(!Array.isArray(raw)) return [];
+
+      const sensorObj = sensors.find(s=>s.name===sensorName);
+      const sensorKey = sensorObj ? sensorObj.key : sensorName.toLowerCase();
+      const cityObj = cities.find(c=>c.name===cityName) || cities[0];
+
+      let filtered = [];
+      if(raw[0]?.city_id !== undefined){
+        filtered = raw.filter(d=>Number(d.city_id) === Number(cityObj.id));
+      } else if(raw[0]?.city){
+        filtered = raw.filter(d=>String(d.city).toLowerCase() === cityName.toLowerCase());
+      } else {
+        filtered = raw;
+      }
+
+      const mapped = filtered
+         .map(d=>{
+          const ts = d.timestamp || d.time || d.created_at;
+          const y  = d[sensorKey];
+          if(!ts || isNaN(Number(y))) return null;
+
+          // Force to a real Date (if backend gives “2024-08-20” etc.)
+          const dateObj = new Date(ts);
+          if (isNaN(dateObj.getTime())) return null;
+          return { x: dateObj, y: Number(y) };
+          })
+        .filter(Boolean)
+        .sort((a,b)=>a.x - b.x);
+
+      if(mapped.length===1){
+        const last = mapped[0];
+        mapped.push({ x:new Date(last.x.getTime()+1), y:last.y });
+      }
+      return mapped;
+    }catch(err){ console.error("API fetch error:", err); return []; }
+  }
+
+  function updateStats(data){
+    const readingEl = document.getElementById("reading");
+    const changeEl = document.getElementById("change");
+    if(!readingEl || !changeEl) return;
+    if(!data.length){
+      readingEl.textContent = "—";
+      changeEl.textContent = "—";
+      return;
+    }
+    const first = data[0].y;
+    const last  = data[data.length-1].y;
+    readingEl.textContent = last.toFixed(2);
+    const diff = last - first;
+    const pct  = first===0 ? 0 : (diff/first)*100;
+    changeEl.textContent = `${diff.toFixed(2)} (${pct.toFixed(2)}%)`;
+    changeEl.style.color = diff>=0 ? "green" : "red";
+  }
+
+  async function renderChart(city, sensorName, range="1D"){
+    const canvas = document.getElementById("sensorChart");
+    if(!canvas) return;
+    await new Promise(r=>setTimeout(r,20));
+    const data = await fetchSensorData(city, sensorName);
+    updateStats(data);
+
+    const ctx = canvas.getContext("2d");
+    if(chartA) chartA.destroy();
+
+    chartA = new Chart(ctx,{
+      type:"line",
+      data:{ datasets:[{
+        label:`${city} — ${sensorName}`,
+        data,
+        borderColor: sensors.find(s=>s.name===sensorName)?.color || "#1976d2",
+        backgroundColor:'rgba(25,118,210,0.08)',
+        pointRadius:4,              // bigger dots
+        pointHoverRadius:6,
+        fill:true,
+        tension:0.2,
+        spanGaps:false 
+      }]},
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        scales:{
+                x:{
+                  type:'time',
+                  time:{
+                    unit:'day',            // force day-level axis
+                    tooltipFormat:'MMM dd',
+                    displayFormats:{ day:'MMM dd' }
+                  },
+                grid:{display:false}
+                },
+          y:{ grid:{display:true, color:'rgba(0,0,0,0.05)'} }
+        },
+        plugins:{
+          legend:{display:false},
+          tooltip:{mode:'index',intersect:false}
+        },
+        interaction:{mode:'nearest',intersect:false}
+      }
+    });
+
+    let unit='hour';
+    if(range==='1W'||range==='1M') unit='day';
+    if(range==='1Y') unit='month';
+    chartA.options.scales.x.time.unit = unit;
+    chartA.update();
+  }
+
+  async function createAndMountDashboard(defaultCity){
+    injectAnalyticsStyles();
+    await loadCities();
+    const container = document.getElementById("main-content") || document.body;
+    container.innerHTML = `
+      <div class="chart-controls">
+        <label>City: <select id="citySelect"></select></label>
+        <label>Sensor: <select id="sensorSelect"></select></label>
+        <div class="range-buttons" id="rangeButtons"></div>
+      </div>
+      <div id="chartContainer"><canvas id="sensorChart"></canvas></div>
+      <div class="stats-bar">
+        Current Reading: <strong id="reading">—</strong>
+        &nbsp; | &nbsp; Change: <span id="change">—</span>
+      </div>
+    `;
+
+    const citySel = document.getElementById("citySelect");
+    cities.forEach(c=>citySel.append(new Option(c.name,c.name)));
+    citySel.value = defaultCity && cities.some(ci=>ci.name===defaultCity) ? defaultCity : cities[0].name;
+
+    const sensorSel = document.getElementById("sensorSelect");
+    sensors.forEach(s=>sensorSel.append(new Option(s.name,s.name)));
+    sensorSel.value = sensors[0].name;
+
+    const rangeContainer = document.getElementById("rangeButtons");
+    ranges.forEach((r,i)=>{
+      const b=document.createElement("button");
+      b.textContent=r;
+      b.dataset.range=r;
+      if(i===0) b.classList.add("active");
+      b.onclick=()=>{
+        document.querySelectorAll(".range-buttons button").forEach(x=>x.classList.remove("active"));
+        b.classList.add("active");
+        renderChart(citySel.value,sensorSel.value,r);
+      };
+      rangeContainer.appendChild(b);
+    });
+
+    citySel.onchange = sensorSel.onchange = ()=>{
+      const active = document.querySelector(".range-buttons button.active")?.dataset.range || "1D";
+      renderChart(citySel.value,sensorSel.value,active);
+    };
+
+    renderChart(citySel.value,sensorSel.value,"1D");
+  }
+
+  window.renderAnalyticsForCity = function(cityName){
+    if(document.readyState==='loading'){
+      document.addEventListener('DOMContentLoaded',()=>createAndMountDashboard(cityName));
+    } else {
+      createAndMountDashboard(cityName);
+    }
+  };
+})();
+function injectAnalyticsStyles(){
+  if(document.getElementById("analytics-style")) return;
+  const style = document.createElement("style");
+  style.id = "analytics-style";
+  style.textContent = `
+    .chart-controls{
+      display:flex;flex-wrap:wrap;gap:20px;padding:16px 24px;
+      background:#fff;border-bottom:1px solid #e0e0e0;
+    }
+    .chart-controls label{font-weight:600;font-size:14px;}
+    .chart-controls select{margin-left:6px;padding:4px 8px;
+      border:1px solid #ccc;border-radius:4px;font-size:14px;}
+    .range-buttons{display:flex;gap:10px;align-items:center;}
+    .range-buttons button{
+      padding:6px 14px;font-size:13px;border:1px solid #ccc;
+      border-radius:4px;background:#f5f5f5;cursor:pointer;
+    }
+    .range-buttons button.active{background:#1976d2;color:#fff;border-color:#1976d2;}
+    #chartContainer{
+      width:100%;height:calc(100vh - 160px);
+      display:flex;align-items:center;justify-content:center;background:#fff;
+    }
+    #sensorChart{width:100%!important;height:100%!important;}
+    .stats-bar{
+      display:flex;justify-content:space-between;flex-wrap:wrap;
+      padding:12px 24px;background:#fff;border-top:1px solid #e0e0e0;
+      font-size:15px;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+</script> -->
+<script>
+    (function(){
+        /* ---------- CONFIG ---------- */
+        const sensors = [
+            { name: "CO2", key: "sensor1", color: "#1976d2" },
+            { name: "NH3", key: "sensor2", color: "#f29900" },
+            { name: "SO2", key: "sensor3", color: "#34a853" },
+            { name: "H2S", key: "sensor4", color: "#ea4335" },
+            { name: "Temperature", key: "sensor5", color: "#9c27b0" },
+            { name: "Humidity", key: "sensor6", color: "#00bcd4" }
+        ];
+        const ranges = ["1D","1W","1M","1Y"];
+        let cities = [];
+        let chartA = null;
+
+        /* ---------- Fetch city list ---------- */
+        async function loadCities(){
+            try{
+                const r = await fetch("https://api.neuronwise.in/nw-ui/cities");
+                const arr = await r.json();
+                if(Array.isArray(arr)){
+                    cities = arr.map(c=>({ name:c.name, id:c.id }));
+                }
+            }catch(e){ console.error("City fetch error:", e); }
+            if(cities.length===0){
+                // fallback if API empty
+                cities = [{name:"Default", id:1}];
+            }
+        }
+
+        /* ---------- Fetch sensor data ---------- */
+        async function fetchSensorData(cityName, sensorName){
+            try {
+                const res = await fetch("https://api.neuronwise.in/nw-ui/sensor_readings");
+                const raw = await res.json();
+                if(!Array.isArray(raw)) return [];
+
+                const sensorObj = sensors.find(s=>s.name===sensorName);
+                const sensorKey = sensorObj ? sensorObj.key : sensorName.toLowerCase();
+                const cityObj = cities.find(c=>c.name===cityName) || cities[0];
+
+                let filtered = [];
+                if(raw[0]?.city_id !== undefined){
+                    filtered = raw.filter(d=>Number(d.city_id) === Number(cityObj.id));
+                } else if(raw[0]?.city){
+                    filtered = raw.filter(d=>String(d.city).toLowerCase() === cityName.toLowerCase());
+                } else {
+                    filtered = raw;
+                }
+
+                const mapped = filtered
+                    .map(d=>{
+                    const ts = d.timestamp || d.time || d.created_at;
+                    const y  = d[sensorKey];
+                    if(!ts || isNaN(Number(y))) return null;
+
+                    // Force to a real Date (if backend gives “2024-08-20” etc.)
+                    const dateObj = new Date(ts);
+                    if (isNaN(dateObj.getTime())) return null;
+                    return { x: dateObj, y: Number(y) };
+                    })
+                    .filter(Boolean)
+                    .sort((a,b)=>a.x - b.x);
+
+                if(mapped.length===1){
+                    const last = mapped[0];
+                    mapped.push({ x:new Date(last.x.getTime()+1), y:last.y });
+                }
+                return mapped;
+            }catch(err){ console.error("API fetch error:", err); return []; }
+        }
+
+        function updateStats(data){
+            const readingEl = document.getElementById("reading");
+            const changeEl = document.getElementById("change");
+            if(!readingEl || !changeEl) return;
+            if(!data.length){
+                readingEl.textContent = "—";
+                changeEl.textContent = "—";
+                return;
+            }
+            const first = data[0].y;
+            const last  = data[data.length-1].y;
+            readingEl.textContent = last.toFixed(2);
+            const diff = last - first;
+            const pct  = first===0 ? 0 : (diff/first)*100;
+            changeEl.textContent = `${diff.toFixed(2)} (${pct.toFixed(2)}%)`;
+            changeEl.style.color = diff>=0 ? "green" : "red";
+        }
+        
+        // NEW: Function to get the min and max dates for the x-axis based on the range
+        function getRangeDates(range) {
+            const now = new Date();
+            let minDate = new Date(now);
+            
+            switch (range) {
+                case '1D':
+                    minDate.setHours(now.getHours() - 24);
+                    break;
+                case '1W':
+                    minDate.setDate(now.getDate() - 7);
+                    break;
+                case '1M':
+                    minDate.setMonth(now.getMonth() - 1);
+                    break;
+                case '1Y':
+                    minDate.setFullYear(now.getFullYear() - 1);
+                    break;
+            }
+            return { min: minDate, max: now };
+        }
+
+        async function renderChart(city, sensorName, range="1D"){
+            const canvas = document.getElementById("sensorChart");
+            if(!canvas) return;
+            await new Promise(r=>setTimeout(r,20));
+            const data = await fetchSensorData(city, sensorName);
+            updateStats(data);
+            
+            // NEW: Get the calculated date range
+            const { min, max } = getRangeDates(range);
+
+            const ctx = canvas.getContext("2d");
+            if(chartA) chartA.destroy();
+
+            chartA = new Chart(ctx,{
+                type:"line",
+                data:{ datasets:[{
+                    label:`${city} — ${sensorName}`,
+                    data,
+                    borderColor: sensors.find(s=>s.name===sensorName)?.color || "#1976d2",
+                    backgroundColor:'rgba(25,118,210,0.08)',
+                    pointRadius:4,
+                    pointHoverRadius:6,
+                    fill:true,
+                    tension:0.2,
+                    spanGaps:true // Set to true to span gaps between data points
+                }]},
+                options:{
+                    responsive:true,
+                    maintainAspectRatio:false,
+                    scales:{
+                        x:{
+                            type:'time',
+                            min: min, // NEW: Set the min date for the axis
+                            max: max, // NEW: Set the max date for the axis
+                            time:{
+                                unit:'day',
+                                tooltipFormat:'MMM dd',
+                                displayFormats:{ day:'MMM dd' }
+                            },
+                            grid:{display:false}
+                        },
+                        y:{ grid:{display:true, color:'rgba(0,0,0,0.05)'} }
+                    },
+                    plugins:{
+                        legend:{display:false},
+                        tooltip:{mode:'index',intersect:false}
+                    },
+                    interaction:{mode:'nearest',intersect:false}
+                }
+            });
+
+            let unit='hour';
+            if(range==='1W'||range==='1M') unit='day';
+            if(range==='1Y') unit='month';
+            chartA.options.scales.x.time.unit = unit;
+            chartA.update();
+        }
+
+        async function createAndMountDashboard(defaultCity){
+            injectAnalyticsStyles();
+            await loadCities();
+            const container = document.getElementById("main-content") || document.body;
+            container.innerHTML = `
+                <div class="chart-controls">
+                    <label>City: <select id="citySelect"></select></label>
+                    <label>Sensor: <select id="sensorSelect"></select></label>
+                    <div class="range-buttons" id="rangeButtons"></div>
+                </div>
+                <div id="chartContainer"><canvas id="sensorChart"></canvas></div>
+                <div class="stats-bar">
+                    Current Reading: <strong id="reading">—</strong>
+                    &nbsp; | &nbsp; Change: <span id="change">—</span>
+                </div>
+            `;
+
+            const citySel = document.getElementById("citySelect");
+            cities.forEach(c=>citySel.append(new Option(c.name,c.name)));
+            citySel.value = defaultCity && cities.some(ci=>ci.name===defaultCity) ? defaultCity : cities[0].name;
+
+            const sensorSel = document.getElementById("sensorSelect");
+            sensors.forEach(s=>sensorSel.append(new Option(s.name,s.name)));
+            sensorSel.value = sensors[0].name;
+
+            const rangeContainer = document.getElementById("rangeButtons");
+            ranges.forEach((r,i)=>{
+                const b=document.createElement("button");
+                b.textContent=r;
+                b.dataset.range=r;
+                if(i===0) b.classList.add("active");
+                b.onclick=()=>{
+                    document.querySelectorAll(".range-buttons button").forEach(x=>x.classList.remove("active"));
+                    b.classList.add("active");
+                    renderChart(citySel.value,sensorSel.value,r);
+                };
+                rangeContainer.appendChild(b);
+            });
+
+            citySel.onchange = sensorSel.onchange = ()=>{
+                const active = document.querySelector(".range-buttons button.active")?.dataset.range || "1D";
+                renderChart(citySel.value,sensorSel.value,active);
+            };
+
+            renderChart(citySel.value,sensorSel.value,"1D");
+        }
+
+        window.renderAnalyticsForCity = function(cityName){
+            if(document.readyState==='loading'){
+                document.addEventListener('DOMContentLoaded',()=>createAndMountDashboard(cityName));
+            } else {
+                createAndMountDashboard(cityName);
+            }
+        };
+    })();
+    function injectAnalyticsStyles(){
+        if(document.getElementById("analytics-style")) return;
+        const style = document.createElement("style");
+        style.id = "analytics-style";
+        style.textContent = `
+            .chart-controls{
+                display:flex;flex-wrap:wrap;gap:20px;padding:16px 24px;
+                background:#fff;border-bottom:1px solid #e0e0e0;
+            }
+            .chart-controls label{font-weight:600;font-size:14px;}
+            .chart-controls select{margin-left:6px;padding:4px 8px;
+                border:1px solid #ccc;border-radius:4px;font-size:14px;}
+            .range-buttons{display:flex;gap:10px;align-items:center;}
+            .range-buttons button{
+                padding:6px 14px;font-size:13px;border:1px solid #ccc;
+                border-radius:4px;background:#f5f5f5;cursor:pointer;
+            }
+            .range-buttons button.active{background:#1976d2;color:#fff;border-color:#1976d2;}
+            #chartContainer{
+                width:100%;height:calc(100vh - 160px);
+                display:flex;align-items:center;justify-content:center;background:#fff;
+            }
+            #sensorChart{width:100%!important;height:100%!important;}
+            .stats-bar{
+                display:flex;justify-content:space-between;flex-wrap:wrap;
+                padding:12px 24px;background:#fff;border-top:1px solid #e0e0e0;
+                font-size:15px;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+</script>
+
+</body>
+</html>

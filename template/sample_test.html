@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Socket.IO Test</title>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</head>
+<body>
+  <h2>Socket.IO Frontend</h2>
+  <div id="data"></div>
+
+  <script>
+    const socket = io("http://3.108.220.219:5000", {
+      transports: ["websocket"],
+    });
+
+    socket.on("connect", () => {
+      console.log("✅ Connected to server");
+    });
+
+    socket.on("new_reading", (data) => {
+      console.log("Received data:", data);
+      document.getElementById("data").innerText = JSON.stringify(data);
+    });
+
+    socket.on("disconnect", () => {
+      console.log("❌ Disconnected from server");
+    });
+  </script>
+</body>
+</html>

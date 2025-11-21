@@ -1,0 +1,1572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>City Sensor Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      background-color: #f0f2f5;
+    }
+    .sidebar {
+      width: 250px;
+      background-color: #2c3e50;
+      color: #ecf0f1;
+      height: 100vh;
+      position: fixed;
+      overflow-y: auto;
+    }
+    .sidebar h2 {
+      padding: 20px;
+      margin: 0;
+      background-color: #1abc9c;
+      text-align: center;
+      font-size: 22px;
+    }
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+    }
+    .sidebar ul li {
+      padding: 15px 20px;
+      cursor: pointer;
+    }
+    .sidebar ul li:hover {
+      background-color: #34495e;
+    }
+    .main-content {
+      margin-left: 260px;
+      padding: 20px;
+      flex-grow: 1;
+      width: calc(100% - 260px);
+    }
+    .card-container {
+      display: grid;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .info-line {
+      display: flex;
+      justify-content: space-between;
+      margin: 6px 0;
+    }
+    .status {
+      font-weight: bold;
+    }
+    .chart-wrapper {
+      height: 300px;
+    }
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+/*     .card-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2 cards per row */
+  gap: 20px;
+} */
+
+/* .square-card {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  min-width: 280px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-size: 18px;
+}
+
+.info-line {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+  align-items: center;
+} */
+    .square-card {
+    flex: 1 1 calc(25% - 16px); /* 4 cards in a row with spacing */
+    max-width: calc(25% - 16px);
+    background: #f5f5f5;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    box-sizing: border-box;
+    height: auto;
+    min-height: 300px;
+  }
+
+  @media screen and (max-width: 1024px) {
+    .square-card {
+      flex: 1 1 calc(50% - 16px); /* 2 cards per row on tablets */
+      max-width: calc(50% - 16px);
+    }
+  }
+
+  @media screen and (max-width: 600px) {
+    .square-card {
+      flex: 1 1 100%; /* 1 card per row on mobile */
+      max-width: 100%;
+    }
+  }
+
+  .info-line {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 16px;
+  }
+.home-card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  padding: 10px;
+}
+
+.home-square-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  min-height: 280px;
+  font-size: 15px;
+}
+.analytics-chart {
+  display: block;
+  margin: auto;
+}
+
+  .chart-card {
+    background: white;
+    padding: 15px;
+    margin-top: 20px;
+    width: 100%;
+    border-radius: 12px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <h2>Dashboard</h2>
+    <ul>
+      <li onclick="loadHome()">Home</li>
+      <li onclick="loadCity('Delhi')">Delhi</li>
+      <li onclick="loadCity('Mumbai')">Mumbai</li>
+      <li onclick="loadCity('Hyderabad')">Hyderabad</li>
+      <li onclick="loadCity('Pune')">Pune</li>
+      <li onclick="loadSettings()">Settings</li>
+      <li onclick="loadAnalytics()">Analytics</li>
+    </ul>
+  </div>
+  <div class="main-content" id="main-content"></div>
+  <script>
+    let chartBuffers = {};
+    let charts = {};
+    let currentCitySocket = null;
+    let chartLabels = {};
+
+//     function loadHome() {
+//   const container = document.getElementById("main-content");
+//   container.innerHTML = '<h2>Home</h2><div class="card-container" id="city-dashboard"></div>';
+
+//   const cities = ["delhi", "mumbai", "hyderabad", "pune"];
+//   const sensors = ["sensor1", "sensor2", "sensor3", "sensor4", "temperature", "humidity"];
+//   const wrapper = document.getElementById("city-dashboard");
+
+//   // ✅ Create UI cards with <span> IDs for each sensor
+//   cities.forEach(city => {
+//     const card = document.createElement("div");
+//     card.className = "card";
+//     card.innerHTML = `
+//       <h3>${city.charAt(0).toUpperCase() + city.slice(1)}</h3>
+//       ${sensors.map(sensor => `
+//         <div class='info-line'>
+//           ${sensor}
+//           <span id='${city}-${sensor}-status'>❌</span>
+//         </div>
+//       `).join("")}
+//     `;
+//     wrapper.appendChild(card);
+//   });
+
+//   // 🔌 Start socket updates — this will populate the ❌/✅ later
+//   startHomeSocketLiveUpdates();
+// }
+    function loadHomeApiCall() {
+  const container = document.getElementById("main-content");
+//   container.innerHTML = `
+//   <div style="display: flex; justify-content: space-between; align-items: center; padding: 10px;">
+//     <button onclick="exportCSV()" style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #3498db; color: white; border: none; border-radius: 4px;">
+//       📄 Export to CSV
+//     </button>
+//     <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+//          alt="Logo" 
+//          style="height: 50px; width: auto; border-radius: 8px;" />
+//   </div>
+
+//   <div class="home-card-container" id="city-dashboard" style="margin-top: 10px;"></div>
+// `;
+      container.innerHTML = `
+  <div style="display: flex; gap: 10px; align-items: center; padding: 10px; flex-wrap: wrap;">
+    
+    <!-- City Selection -->
+    <select id="citySelect" style="padding: 6px; font-size: 14px;">
+      <option value="">Select City</option>
+      <option value="delhi">Delhi</option>
+      <option value="mumbai">Mumbai</option>
+      <option value="pune">Pune</option>
+      <!-- Add more cities here -->
+    </select>
+
+    <!-- Start Date -->
+    <input type="date" id="startDate" style="padding: 6px; font-size: 14px;">
+
+    <!-- End Date -->
+    <input type="date" id="endDate" style="padding: 6px; font-size: 14px;">
+
+    <!-- Export Button -->
+    <button onclick="exportCSV()" 
+      style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #3498db; color: white; border: none; border-radius: 4px;">
+      📄 Export to CSV
+    </button>
+
+    <!-- Logo -->
+    <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+         alt="Logo" 
+         style="height: 50px; width: auto; border-radius: 8px; margin-left: auto;" />
+  </div>
+
+  <div class="home-card-container" id="city-dashboard" style="margin-top: 10px;"></div>
+`;
+
+
+
+  const cities = [
+    { name: "delhi", icon: "🏙️" },
+    { name: "mumbai", icon: "🌆" },
+    { name: "hyderabad", icon: "🕌" },
+    { name: "pune", icon: "🌇" }
+  ];
+  const sensors = [
+    { name: "sensor1", displayName: "CO2", icon: "🧪" },
+    { name: "sensor2", displayName: "NH3", icon: "🧪" },
+    { name: "sensor3", displayName: "SO2", icon: "🧪" },
+    { name: "sensor4", displayName: "H2S", icon: "🧪" },
+    { name: "sensor5", displayName: "temperature", icon: "🌡️" }, // ✅ map
+    { name: "sensor6", displayName: "humidity", icon: "💧" }     // ✅ map
+  ];
+
+
+  const wrapper = document.getElementById("city-dashboard");
+
+  cities.forEach(city => {
+    const card = document.createElement("div");
+    card.className = "home-square-card";
+    card.innerHTML = `
+      <h3 style="font-size: 20px; margin-bottom: 10px;">
+        ${city.icon} ${city.name.charAt(0).toUpperCase() + city.name.slice(1)}
+      </h3>
+      ${sensors.map(sensor => `
+        <div class='info-line'>
+          <span style="font-size: 15px;">${sensor.icon} ${sensor.displayName || sensor.name}</span>
+          <span id='${city.name}-${sensor.name}-status' style="font-size: 15px;">❌</span>
+        </div>
+      `).join("")}
+    `;
+    wrapper.appendChild(card);
+  });
+
+  startHomeSocketLiveUpdates();
+}
+// function exportCSV() {
+//   let csvContent = "City,Sensor,Status\n";
+//   const cities = ["delhi", "mumbai", "hyderabad", "pune"];
+//   const sensors = ["sensor1", "sensor2", "sensor3", "sensor4", "temperature", "humidity"];
+
+//   cities.forEach(city => {
+//     sensors.forEach(sensor => {
+//       const el = document.getElementById(`${city}-${sensor}-status`);
+//       if (el) {
+//         csvContent += `${city},${sensor},${el.textContent}\n`;
+//       }
+//     });
+//   });
+
+//   const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+//   const url = URL.createObjectURL(blob);
+//   const link = document.createElement("a");
+//   link.setAttribute("href", url);
+//   link.setAttribute("download", "sensor_status.csv");
+//   link.style.display = "none";
+//   document.body.appendChild(link);
+//   link.click();
+//   document.body.removeChild(link);
+// }
+async function exportCSVApiCall() {
+  const city = document.getElementById("citySelect")?.value || "";
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
+
+  if (!start || !end) {
+    alert("Please select a date range");
+    return;
+  }
+
+  try {
+    const res = await fetch(`http://3.108.220.219:5000/samvaad-ui/get_sensor_readings`);
+    if (!res.ok) throw new Error("Failed to fetch data");
+
+    const allData = await res.json();
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    endDate.setHours(23, 59, 59, 999);
+
+    const filteredData = allData.filter(item => {
+      const readingDate = new Date(item.reading_time);
+      return readingDate >= startDate && readingDate <= endDate;
+    });
+
+    if (!filteredData.length) {
+      alert("No data found for the selected range");
+      return;
+    }
+
+    // ✅ Updated column mapping to match API keys
+    const columnMap = {
+      reading_time: "Timestamp",
+      sensor1: "CO2 (ppm)",
+      sensor2: "NH3 (ppm)",
+      sensor3: "SO2 (ppm)",
+      sensor4: "H2S (ppm)",
+      temperature: "Temperature (°C)",
+      humidity: "Humidity (%)"
+    };
+
+    const headers = Object.values(columnMap);
+    const keys = Object.keys(columnMap);
+
+    const csvRows = [];
+    csvRows.push(headers.join(",")); // header row
+
+    filteredData.forEach(row => {
+      const values = keys.map(k => {
+        let val = row[k];
+        if (val === null || val === undefined || val === "None") val = "";
+        return JSON.stringify(val);
+      });
+      csvRows.push(values.join(","));
+    });
+
+    const csvData = csvRows.join("\n");
+
+    const blob = new Blob([csvData], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${city || "all_cities"}_readings_${start}_to_${end}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error(err);
+    alert("Error exporting CSV");
+  }
+}
+
+
+
+     let cityLastUpdated = {
+  delhi: 0,
+  mumbai: 0,
+  hyderabad: 0,
+  pune: 0
+};
+
+function startHomeSocketLiveUpdatesApiCall() {
+  const socket = io("http://3.108.220.219:5000", { transports: ["websocket"] });
+
+  socket.on("connect", () => console.log("Connected to Home socket"));
+
+  socket.on("new_reading", (data) => {
+    const cities = ["delhi", "mumbai", "hyderabad", "pune"];
+    // const sensors = ["sensor1", "sensor2", "sensor3", "sensor4", "sensor5", "sensor6"];
+    const sensors = [
+     { name: "sensor1" },
+     { name: "sensor2" },
+     { name: "sensor3" },
+     { name: "sensor4" },
+     { name: "sensor5" }, // backend sends temp here
+     { name: "sensor6" }  // backend sends humidity here
+    ];
+
+
+    const now = Date.now();
+    cities.forEach(city => {
+      cityLastUpdated[city] = now;
+      sensors.forEach(sensor => {
+      const el = document.getElementById(`${city}-${sensor.name}-status`);
+        if (el) {
+          const value = data[sensor.name];
+          const isConnected = value !== null && value !== undefined;
+          el.textContent = isConnected ? "✅" : "❌";
+          el.style.color = isConnected ? "green" : "red";
+        }
+     });
+
+      // sensors.forEach(sensor => {
+      //   const el = document.getElementById(`${city}-${sensor}-status`);
+      //   if (el) {
+      //     const value = data[sensor];
+      //     const isConnected = value !== null && value !== undefined;
+      //     el.textContent = isConnected ? "✅" : "❌";
+      //     el.style.color = isConnected ? "green" : "red";
+      //   }
+      // });
+    });
+  });
+
+  socket.on("disconnect", () => console.warn("Disconnected from Home socket"));
+
+  // 🕒 Set an interval to check if a city hasn’t updated in 10 seconds
+  setInterval(() => {
+    const now = Date.now();
+    const timeout = 10 * 1000; // 10 seconds
+    const sensors = ["sensor1", "sensor2", "sensor3", "sensor4", "sensor5", "sensor6"];
+
+    for (const city in cityLastUpdated) {
+      if (now - cityLastUpdated[city] > timeout) {
+        sensors.forEach(sensor => {
+          const el = document.getElementById(`${city}-${sensor}-status`);
+          if (el) {
+            el.textContent = "❌";
+            el.style.color = "red";
+          }
+        });
+      }
+    }
+  }, 3000); // check every 3 seconds
+}
+
+    // function loadCity(city) {
+    //   const container = document.getElementById("main-content");
+    //   container.innerHTML = `<h2>${city} Sensors</h2><div class="card-container" id="sensor-cards"></div>`;
+    //   const sensors = ["sensor1", "sensor2", "sensor3", "sensor4"];
+    //   const wrapper = document.getElementById("sensor-cards");
+
+    //   sensors.forEach(sensor => {
+    //     const card = document.createElement("div");
+    //     card.className = "card";
+    //     card.innerHTML = `
+    //       <h3>${sensor}</h3>
+    //       <p>Current: <span id="${sensor}-value">--</span></p>
+    //       <div class="chart-wrapper"><canvas id="chart-${sensor}"></canvas></div>
+    //     `;
+    //     wrapper.appendChild(card);
+    //   });
+
+    //   startCitySocket(city);
+    // }
+    function loadHome() {
+  const container = document.getElementById("main-content");
+
+  container.innerHTML = `
+    <div style="display: flex; gap: 10px; align-items: center; padding: 10px; flex-wrap: wrap;">
+      <select id="citySelect" style="padding: 6px; font-size: 14px;">
+        <option value="">Select City</option>
+        <option value="delhi">Delhi</option>
+        <option value="mumbai">Mumbai</option>
+        <option value="pune">Pune</option>
+        <option value="hyderabad">Hyderabad</option>
+      </select>
+
+      <input type="date" id="startDate" style="padding: 6px; font-size: 14px;">
+      <input type="date" id="endDate" style="padding: 6px; font-size: 14px;">
+
+      <button onclick="exportCSV()" 
+        style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #3498db; color: white; border: none; border-radius: 4px;">
+        📄 Export to CSV
+      </button>
+
+      <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+          alt="Logo" 
+          style="height: 50px; width: auto; border-radius: 8px; margin-left: auto;" />
+    </div>
+
+    <div class="home-card-container" id="city-dashboard" style="margin-top: 10px;"></div>
+  `;
+
+  const cities = [
+    { name: "delhi", icon: "🏙️" },
+    { name: "mumbai", icon: "🌆" },
+    { name: "hyderabad", icon: "🕌" },
+    { name: "pune", icon: "🌇" }
+  ];
+
+  const sensors = [
+    { name: "sensor1", displayName: "CO2", icon: "🧪" },
+    { name: "sensor2", displayName: "NH3", icon: "🧪" },
+    { name: "sensor3", displayName: "SO2", icon: "🧪" },
+    { name: "sensor4", displayName: "H2S", icon: "🧪" },
+    { name: "sensor5", displayName: "Temperature", icon: "🌡️" },
+    { name: "sensor6", displayName: "Humidity", icon: "💧" }
+  ];
+
+  const wrapper = document.getElementById("city-dashboard");
+
+  cities.forEach(city => {
+    const card = document.createElement("div");
+    card.className = "home-square-card";
+
+    card.innerHTML = `
+      <h3 style="font-size: 20px; margin-bottom: 10px;">
+        ${city.icon} ${city.name.charAt(0).toUpperCase() + city.name.slice(1)}
+      </h3>
+
+      ${sensors.map(sensor => `
+        <div class='info-line'>
+          <span style="font-size: 15px;">${sensor.icon} ${sensor.displayName}</span>
+          <span id="${city.name}-${sensor.name}-status" style="font-size: 15px; color:red;">❌</span>
+        </div>`).join("")}
+    `;
+
+    wrapper.appendChild(card);
+  });
+
+  simulateSensorActivity();  // ⬅️ Start random sensor updates
+}
+
+
+
+// -----------------------------------------------------
+// ✅ RANDOM SENSOR CONNECT / DISCONNECT SIMULATION
+// -----------------------------------------------------
+function simulateSensorActivity() {
+  const cities = ["delhi", "mumbai", "hyderabad", "pune"];
+  const sensors = ["sensor1", "sensor2", "sensor3", "sensor4", "sensor5", "sensor6"];
+
+  setInterval(() => {
+    cities.forEach(city => {
+      sensors.forEach(sensor => {
+        const el = document.getElementById(`${city}-${sensor}-status`);
+        if (!el) return;
+
+        const isConnected = Math.random() > 0.4; // 60% chance connected
+        el.textContent = isConnected ? "✅" : "❌";
+        el.style.color = isConnected ? "green" : "red";
+      });
+    });
+  }, 5000);  // 🔁 update every 5 seconds
+}
+
+    function initChartBuffer(city) {
+      if (!chartBuffers[city]) {
+        chartBuffers[city] = {
+          sensor1: [], sensor2: [], sensor3: [], sensor4: [],sensor5: [], sensor6: [], 
+          labels: []
+        };
+      }
+    }
+    function destroyCityCharts(city) {
+      const cityKey = city.toLowerCase();
+      ["sensor1", "sensor2", "sensor3", "sensor4","sensor5","sensor6"].forEach(sensor => {
+        const chartId = `${cityKey}-${sensor}`;
+        if (charts[chartId]) {
+          charts[chartId].destroy();
+          delete charts[chartId];
+        }
+      });
+    }
+function exportCSV() {
+    const sensors = ["CO2", "NH3", "SO2", "H2S", "Temperature", "Humidity"];
+    const rows = [];
+
+    // Generate 50 simulated readings
+    for (let i = 0; i < 50; i++) {
+        rows.push({
+            reading: `Reading-${i + 1}`,
+            CO2: Math.floor(Math.random() * 100),
+            NH3: Math.floor(Math.random() * 80),
+            SO2: Math.floor(Math.random() * 60),
+            H2S: Math.floor(Math.random() * 40),
+            Temperature: (20 + Math.random() * 10).toFixed(2),  // 20–30°C
+            Humidity: (30 + Math.random() * 50).toFixed(2)      // 30–80%
+        });
+    }
+
+    // CSV Header
+    let csv = "Reading,CO2,NH3,SO2,H2S,Temperature,Humidity\n";
+
+    // CSV rows
+    csv += rows
+        .map(r => `${r.reading},${r.CO2},${r.NH3},${r.SO2},${r.H2S},${r.Temperature},${r.Humidity}`)
+        .join("\n");
+
+    // Download CSV
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "sensor_readings.csv";
+    a.click();
+    window.URL.revokeObjectURL(url);
+}
+
+//     function loadCity(city) {
+//   destroyCityCharts(city);
+//   const container = document.getElementById("main-content");
+//   container.innerHTML = `
+//     <div style="
+//       display: flex;
+//       justify-content: space-between;
+//       align-items: center;
+//       margin-bottom: 15px;
+//       flex-wrap: wrap;
+//       gap: 10px;
+//     ">
+//       <!-- Left: City Name -->
+//       <h2 style="margin: 0; white-space: nowrap;">City: ${city}</h2>
+      
+//       <!-- Right: Date Range + Export Button + Logo -->
+//       <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+//         <input type="date" id="startDate">
+//         <input type="date" id="endDate">
+//         <button id="exportBtn" style="padding: 5px 10px;">Export CSV</button>
+//         <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+//              alt="Logo" 
+//              style="height: 40px; width: auto; object-fit: contain; cursor: pointer;">
+//       </div>
+//     </div>
+
+//     <!-- Sensor Cards Grid -->
+//     <div class="card-container" id="sensor-cards" 
+//       style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+//     </div>
+//   `;
+
+//   const sensors = [
+//     { name: "sensor1", label: "CO2" },
+//     { name: "sensor2", label: "NH3" },
+//     { name: "sensor3", label: "SO2" },
+//     { name: "sensor4", label: "H2S" },
+//     { name: "sensor5", label: "Temperature" },
+//     { name: "sensor6", label: "Humidity" }
+//   ];
+
+//   const wrapper = document.getElementById("sensor-cards");
+
+//   if (currentCitySocket) {
+//     currentCitySocket.disconnect();
+//     currentCitySocket = null;
+//   }
+//   chartBuffers = {};
+//   charts = {};
+
+//   sensors.forEach(sensor => {
+//     if (charts[sensor.name]) {
+//       charts[sensor.name].destroy();
+//       delete charts[sensor.name];
+//     }
+//   });
+
+//   // Build sensor cards with small status icon
+//   sensors.forEach(sensor => {
+//     const card = document.createElement("div");
+//     card.className = "card";
+//     card.style.minHeight = "200px";
+//     card.innerHTML = `
+//       <h3 style="margin: 5px 0; display: flex; justify-content: space-between; align-items: center;">
+//         ${sensor.label}
+//         <span id="${sensor.name}-status" style="font-size: 0.9em; color: red;">❌</span>
+//       </h3>
+//       <p style="margin: 0;">Reading: <span id="${sensor.name}-value">--</span></p>
+//       <div class="chart-wrapper" style="height:250px;">
+//         <canvas id="chart-${sensor.name}"></canvas>
+//       </div>
+//     `;
+//     wrapper.appendChild(card);
+//   });
+
+//   // Attach export button logic
+//   document.getElementById("exportBtn").addEventListener("click", async () => {
+//     const start = document.getElementById("startDate").value;
+//     const end = document.getElementById("endDate").value;
+
+//     if (!start || !end) {
+//       alert("Please select a date range");
+//       return;
+//     }
+
+//     try {
+//       const res = await fetch(`http://3.108.220.219:5000/samvaad-ui/get_sensor_readings`);
+//       if (!res.ok) throw new Error("Failed to fetch data");
+
+//       let data = await res.json();
+//       // Filter by date range on frontend
+//       data = data.filter(row => {
+//         const rowDate = row.reading_time?.split("T")[0];
+//         return rowDate >= start && rowDate <= end;
+//       });
+
+//       if (!data.length) {
+//         alert("No data found for the selected range");
+//         return;
+//       }
+
+//       const headers = Object.keys(data[0]);
+//       const csvRows = [headers.join(",")];
+//       data.forEach(row => {
+//         const values = headers.map(h => JSON.stringify(row[h] ?? ""));
+//         csvRows.push(values.join(","));
+//       });
+
+//       const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+//       const url = URL.createObjectURL(blob);
+//       const a = document.createElement("a");
+//       a.href = url;
+//       a.download = `sensor_readings_${start}_to_${end}.csv`;
+//       document.body.appendChild(a);
+//       a.click();
+//       document.body.removeChild(a);
+//       URL.revokeObjectURL(url);
+
+//     } catch (err) {
+//       console.error(err);
+//       alert("Error exporting CSV");
+//     }
+//   });
+
+//   startCitySocket(city, sensors);
+// }
+    async function loadCityApiCall(city) {
+  destroyCityCharts(city); // Optional: remove if you want to keep existing charts
+  const container = document.getElementById("main-content");
+
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
+      <h2 style="margin:0;white-space:nowrap;">City: ${city}</h2>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <input type="date" id="startDate">
+        <input type="date" id="endDate">
+        <button id="exportBtn" style="padding:5px 10px;">Export CSV</button>
+        <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+             alt="Logo" style="height:40px;width:auto;object-fit:contain;cursor:pointer;">
+      </div>
+    </div>
+    <div class="card-container" id="sensor-cards" 
+      style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
+  `;
+  const sensors = [
+  { name: "sensor1", label: "CO2", unit: "ppm" },
+  { name: "sensor2", label: "NH3", unit: "ppm" },
+  { name: "sensor3", label: "SO2", unit: "ppm" },
+  { name: "sensor4", label: "H2S", unit: "ppm" },
+  { name: "sensor5", label: "Temperature", unit: "°C" },
+  { name: "sensor6", label: "Humidity", unit: "%" }
+];
+
+const wrapper = document.getElementById("sensor-cards");
+
+sensors.forEach(sensor => {
+  const card = document.createElement("div");
+  card.className = "card";
+  card.style.minHeight = "200px";
+  card.innerHTML = `
+    <h3 style="margin:5px 0;display:flex;justify-content:space-between;align-items:center;">
+      ${sensor.label}
+      <span id="${sensor.name}-status" style="font-size:0.9em;color:red;">❌</span>
+    </h3>
+    <p style="margin:0;">Reading: <span id="${sensor.name}-value">--</span> ${sensor.unit}</p>
+    <div class="chart-wrapper" style="height:250px;">
+      <canvas id="chart-${sensor.name}"></canvas>
+    </div>
+  `;
+  wrapper.appendChild(card);
+});
+
+  // Fetch historical data once
+  try {
+    const res = await fetch(`http://3.108.220.219:5000/samvaad-ui/get_sensor_readings`);
+    const historyData = await res.json();
+
+    // Initialize chart buffer with history
+    // const cityKey = city.toLowerCase();
+    // chartBuffers[cityKey] = { labels: [] };
+    // sensors.forEach(s => chartBuffers[cityKey][s.name] = []);
+
+    // historyData.forEach(row => {
+    //   const time = formatTime(row.reading_time);
+    //   chartBuffers[cityKey].labels.push(time);
+    //   sensors.forEach(s => {
+    //     chartBuffers[cityKey][s.name].push(row[s.name] ?? null);
+    //   });
+    // });
+    // Initialize chart buffer with history
+const cityKey = city.toLowerCase();
+chartBuffers[cityKey] = { labels: [] };
+sensors.forEach(s => chartBuffers[cityKey][s.name] = []);
+
+historyData.forEach(row => {
+  const time = formatTime(row.reading_time);
+  chartBuffers[cityKey].labels.push(time);
+
+  sensors.forEach(s => {
+    let value = null;
+
+    // Map DB fields to sensor names
+    if (s.name === "sensor5") {
+          value = row.temperature ?? null;
+        } else if (s.name === "sensor6") {
+          value = row.humidity ?? null;
+        } else {
+          value = row[s.name] ?? null;
+        }
+
+        chartBuffers[cityKey][s.name].push(value);
+      });
+    });
+
+
+    // Create charts with history
+    sensors.forEach(sensor => {
+      const ctx = document.getElementById(`chart-${sensor.name}`);
+      charts[`${cityKey}-${sensor.name}`] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: [...chartBuffers[cityKey].labels],
+          datasets: [{
+            label: sensor.label,
+            data: [...chartBuffers[cityKey][sensor.name]],
+            borderColor: '#1abc9c',
+            backgroundColor: 'rgba(26,188,156,0.2)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          scales: {
+            x: { ticks: { maxTicksLimit: 6 } },
+            y: { beginAtZero: true, title: { display: true, text: "Value" } }
+          },
+          plugins: { legend: { display: false } },
+          responsive: true,
+          maintainAspectRatio: false
+        }
+      });
+    });
+     // Attach export button logic
+document.getElementById("exportBtn").addEventListener("click", async () => {
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
+
+  if (!start || !end) {
+    alert("Please select a date range");
+    return;
+  }
+
+  try {
+    const res = await fetch(`http://3.108.220.219:5000/samvaad-ui/get_sensor_readings`);
+    if (!res.ok) throw new Error("Failed to fetch data");
+
+    let data = await res.json();
+
+    // Filter by date range on frontend
+    data = data.filter(row => {
+      const rowDate = row.reading_time?.split("T")[0];
+      return rowDate >= start && rowDate <= end;
+    });
+
+    if (!data.length) {
+      alert("No data found for the selected range");
+      return;
+    }
+
+    // ✅ Updated column mapping to match API keys
+    const columnMap = {
+      reading_time: "Timestamp",
+      sensor1: "CO2 (ppm)",
+      sensor2: "NH3 (ppm)",
+      sensor3: "SO2 (ppm)",
+      sensor4: "H2S (ppm)",
+      temperature: "Temperature (°C)",
+      humidity: "Humidity (%)"
+    };
+
+    const headers = Object.values(columnMap);
+    const keys = Object.keys(columnMap);
+
+    const csvRows = [];
+    csvRows.push(headers.join(",")); // header row
+
+    data.forEach(row => {
+      const values = keys.map(k => JSON.stringify(row[k] ?? ""));
+      csvRows.push(values.join(","));
+    });
+
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `sensor_readings_${start}_to_${end}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error(err);
+    alert("Error exporting CSV");
+  }
+});
+
+    // Start socket live updates (append data to charts)
+    startCitySocket(city, sensors);
+
+  } catch (err) {
+    console.error("Error fetching historical data:", err);
+  }
+
+  // Export button logic unchanged...
+}
+
+    function startCitySocketApiCall(city, sensors) {
+  const cityKey = city.toLowerCase();
+  initChartBuffer(cityKey);
+  const socket = io("http://3.108.220.219:5000", { transports: ["websocket"] });
+
+  // Track last updated time per sensor
+  const sensorLastUpdated = {};
+  sensors.forEach(s => sensorLastUpdated[s.name] = 0);
+
+  socket.on("connect", () => {
+    console.log(`Connected to ${city} socket`);
+  });
+
+  socket.on("disconnect", () => {
+    console.warn(`Disconnected from ${city} socket`);
+    // Immediately mark all sensors as disconnected
+    sensors.forEach(sensor => {
+      const statusEl = document.getElementById(`${sensor.name}-status`);
+      if (statusEl) {
+        statusEl.textContent = "❌";
+        statusEl.style.color = "red";
+      }
+    });
+  });
+
+  socket.on("new_reading", (data) => {
+    const time = formatTime(data.reading_time);
+
+    sensors.forEach(sensor => {
+      const value = data[sensor.name];
+      const el = document.getElementById(`${sensor.name}-value`);
+      const statusEl = document.getElementById(`${sensor.name}-status`);
+
+      if (value != null && value !== "") {
+        if (el) el.textContent = value;
+        if (statusEl && statusEl.textContent !== "✅") {
+          statusEl.textContent = "✅";
+          statusEl.style.color = "green";
+        }
+        sensorLastUpdated[sensor.name] = Date.now();
+      } else {
+        if (statusEl && statusEl.textContent !== "❌") {
+          statusEl.textContent = "❌";
+          statusEl.style.color = "red";
+        }
+      }
+
+      const buffer = chartBuffers[cityKey];
+      if (!buffer[sensor.name]) buffer[sensor.name] = [];
+      buffer[sensor.name].push(value);
+      buffer.labels.push(time);
+
+      if (buffer[sensor.name].length > 20) {
+        buffer[sensor.name].shift();
+        buffer.labels.shift();
+      }
+
+      const ctx = document.getElementById(`chart-${sensor.name}`);
+      if (!charts[`${cityKey}-${sensor.name}`]) {
+        charts[`${cityKey}-${sensor.name}`] = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels: [...buffer.labels],
+            datasets: [{
+              label: sensor.label,
+              data: [...buffer[sensor.name]],
+              borderColor: '#1abc9c',
+              backgroundColor: 'rgba(26, 188, 156, 0.2)',
+              fill: true,
+              tension: 0.3
+            }]
+          },
+          options: {
+            scales: {
+              x: { ticks: { maxTicksLimit: 6 } },
+              y: { beginAtZero: true, title: { display: true, text: "Value" } }
+            },
+            plugins: { legend: { display: false } },
+            responsive: true,
+            maintainAspectRatio: false
+          }
+        });
+      } else {
+        const chart = charts[`${cityKey}-${sensor.name}`];
+        chart.data.labels = [...buffer.labels];
+        chart.data.datasets[0].data = [...buffer[sensor.name]];
+        chart.update();
+      }
+    });
+  });
+
+  // Check every 3 seconds if any sensor is stale (>10s no update)
+  setInterval(() => {
+    const now = Date.now();
+    const timeout = 10 * 1000;
+    sensors.forEach(sensor => {
+      if (now - sensorLastUpdated[sensor.name] > timeout) {
+        const statusEl = document.getElementById(`${sensor.name}-status`);
+        if (statusEl && statusEl.textContent !== "❌") {
+          statusEl.textContent = "❌";
+          statusEl.style.color = "red";
+        }
+      }
+    });
+  }, 3000);
+}
+// SIMULATED VERSION — NO API CALLS, NO SOCKETS
+// Generates random sensor data every 2 seconds
+async function loadCity(city) {
+  destroyCityCharts(city);
+  const sensorsList = [
+    { name: "sensor1", label: "CO2" },
+    { name: "sensor2", label: "NH3" },
+    { name: "sensor3", label: "SO2" },
+    { name: "sensor4", label: "H2S" },
+    { name: "sensor5", label: "Temperature" },
+    { name: "sensor6", label: "Humidity" }
+  ];
+
+  const container = document.getElementById("main-content");
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
+      <h2 style="margin:0;">City: ${city}</h2>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <input type="date" id="startDate">
+        <input type="date" id="endDate">
+        <button id="exportBtn" style="padding:5px 10px;">Export CSV</button>
+      </div>
+    </div>
+    <div class="card-container" id="sensor-cards" 
+      style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
+  `;
+
+  const sensors = [
+    { name: "sensor1", label: "CO2", unit: "ppm" },
+    { name: "sensor2", label: "NH3", unit: "ppm" },
+    { name: "sensor3", label: "SO2", unit: "ppm" },
+    { name: "sensor4", label: "H2S", unit: "ppm" },
+    { name: "temperature", label: "Temperature", unit: "°C" },
+    { name: "humidity", label: "Humidity", unit: "%" }
+  ];
+
+  const wrapper = document.getElementById("sensor-cards");
+
+  sensors.forEach(sensor => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `
+      <h3>
+        ${sensor.label}
+        <span id="${sensor.name}-status" style="font-size:0.9em;color:red;">❌</span>
+      </h3>
+      <p>Reading: <span id="${sensor.name}-value">--</span> ${sensor.unit}</p>
+      <div class="chart-wrapper" style="height:250px;">
+        <canvas id="chart-${sensor.name}"></canvas>
+      </div>
+    `;
+    wrapper.appendChild(card);
+  });
+
+  // SIMULATE 20 historical readings
+  const historyData = simulateHistory();
+
+  const cityKey = city.toLowerCase();
+  chartBuffers[cityKey] = { labels: [] };
+  sensors.forEach(s => chartBuffers[cityKey][s.name] = []);
+
+  historyData.forEach(row => {
+    const time = formatTime(row.reading_time);
+    chartBuffers[cityKey].labels.push(time);
+    sensors.forEach(s => chartBuffers[cityKey][s.name].push(row[s.name] ?? null));
+  });
+
+  // Create Charts
+  sensors.forEach(sensor => {
+    const ctx = document.getElementById(`chart-${sensor.name}`);
+    charts[`${cityKey}-${sensor.name}`] = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: [...chartBuffers[cityKey].labels],
+        datasets: [{
+          label: sensor.label,
+          data: [...chartBuffers[cityKey][sensor.name]],
+          borderColor: '#1abc9c',
+          backgroundColor: 'rgba(26,188,156,0.2)',
+          fill: true,
+          tension: 0.3,
+          borderWidth: 0.5   // ⭐ MAKE LINE THICKER
+        }]
+      },
+      options: {
+        scales: { x: { ticks: { maxTicksLimit: 6 } }, y: { beginAtZero: true } },
+        plugins: { legend: { display: false } },
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  });
+
+  // Start simulated live feed
+  startCitySocket(city, sensors);
+ 
+  // CSV Export (now exports simulated historical)
+  document.getElementById("exportBtn").onclick = () => exportCSVCityWise(cityKey,sensorsList);
+}
+
+// ---------------- SIMULATION FUNCTIONS ----------------
+
+function randomValue(sensor) {
+  switch (sensor) {
+    case "sensor1": return rand(300, 600);
+    case "sensor2": return rand(10, 40);
+    case "sensor3": return rand(5, 25);
+    case "sensor4": return rand(1, 10);
+    case "sensor5": return rand(20, 35);
+    case "sensor6": return rand(40, 90);
+  }
+}
+
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+function simulateReading() {
+  return {
+    reading_time: new Date().toISOString(),
+    sensor1: Math.floor(Math.random() * 500),
+    sensor2: Math.floor(Math.random() * 200),
+    sensor3: Math.floor(Math.random() * 150),
+    sensor4: Math.floor(Math.random() * 80),
+    temperature: (20 + Math.random() * 10).toFixed(1),
+    humidity: (40 + Math.random() * 30).toFixed(1)
+  };
+}
+
+function simulateHistory() {
+  const arr = [];
+  for (let i = 0; i < 20; i++) {
+    const r = simulateReading();
+    // shift timestamps back by i minutes
+    r.reading_time = new Date(Date.now() - i * 60000).toISOString();
+    arr.push(r);
+  }
+  return arr.reverse();
+}
+function startCitySocket(city, sensors) {
+  const cityKey = city.toLowerCase();
+
+  setInterval(() => {
+    const data = simulateReading();
+    const time = formatTime(data.reading_time);
+
+    chartBuffers[cityKey].labels.push(time);
+    if (chartBuffers[cityKey].labels.length > 20)
+      chartBuffers[cityKey].labels.shift();
+
+    sensors.forEach(sensor => {
+      const val = data[sensor.name];
+      document.getElementById(`${sensor.name}-value`).textContent = val;
+      const statusEl = document.getElementById(`${sensor.name}-status`);
+      statusEl.textContent = "✅";
+      statusEl.style.color = "green";
+
+      chartBuffers[cityKey][sensor.name].push(val);
+      if (chartBuffers[cityKey][sensor.name].length > 20)
+        chartBuffers[cityKey][sensor.name].shift();
+
+      const chart = charts[`${cityKey}-${sensor.name}`];
+      chart.data.labels = [...chartBuffers[cityKey].labels];
+      chart.data.datasets[0].data = [...chartBuffers[cityKey][sensor.name]];
+      chart.update();
+    });
+
+  }, 2000); // Every 2 seconds
+}
+
+// ---------------- CSV EXPORT ----------------
+// function exportCSVCityWise(cityKey, sensors) {
+//   let rows = [];
+//   rows.push(["Timestamp", ...sensors.map(s => s.label)].join(","));
+
+//   chartBuffers[cityKey].labels.forEach((t, i) => {
+//     const row = [t];
+//     sensors.forEach(s => row.push(chartBuffers[cityKey][s.name][i]));
+//     rows.push(row.join(","));
+//   });
+
+//   const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+//   const url = URL.createObjectURL(blob);
+//   const a = document.createElement("a");
+//   a.href = url;
+//   a.download = `simulated_${cityKey}_data.csv`;
+//   a.click();
+//   URL.revokeObjectURL(url);
+// }
+function exportCSVCityWise(cityKey, sensors) {
+  const rows = [];
+
+  // Header row
+  rows.push(["Reading", ...sensors.map(s => s.label)].join(","));
+
+  // Generate 50 simulated rows
+  for (let i = 0; i < 50; i++) {
+    const row = [`Reading-${i + 1}`];
+
+    sensors.forEach(s => {
+      let value;
+
+      switch (s.name) {
+        case "sensor1": value = Math.floor(Math.random() * 100); break;  // CO2
+        case "sensor2": value = Math.floor(Math.random() * 80); break;   // NH3
+        case "sensor3": value = Math.floor(Math.random() * 60); break;   // SO2
+        case "sensor4": value = Math.floor(Math.random() * 40); break;   // H2S
+        case "sensor5": value = (20 + Math.random() * 10).toFixed(2); break; // Temp
+        case "sensor6": value = (30 + Math.random() * 50).toFixed(2); break; // Humidity
+        default: value = 0;
+      }
+
+      row.push(value);
+    });
+
+    rows.push(row.join(","));
+  }
+
+  // Export CSV
+  const blob = new Blob([rows.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${cityKey}_simulated_readings.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+    // 🔹 Include temperature and humidity here
+    // ["sensor1", "sensor2", "sensor3", "sensor4", "sensor5", "sensor6"].forEach(sensor => {
+    //   const value = data[sensor];
+    //   const el = document.getElementById(`${sensor}-value`);
+    //   if (el) el.textContent = value;
+
+    //   const buffer = chartBuffers[cityKey];
+    //   if (!buffer[sensor]) buffer[sensor] = [];
+
+    //   buffer[sensor].push(value);
+    //   buffer.labels.push(time);
+
+    //   if (buffer[sensor].length > 20) {
+    //     buffer[sensor].shift();
+    //     buffer.labels.shift();
+    //   }
+
+    //   const ctx = document.getElementById(`chart-${sensor}`);
+    //   if (!charts[`${cityKey}-${sensor}`]) {
+    //     charts[`${cityKey}-${sensor}`] = new Chart(ctx, {
+    //       type: 'line',
+    //       data: {
+    //         labels: [...buffer.labels],
+    //         datasets: [{
+    //           label: sensor,
+    //           data: [...buffer[sensor]],
+    //           borderColor: '#1abc9c',
+    //           backgroundColor: 'rgba(26, 188, 156, 0.2)',
+    //           fill: true,
+    //           tension: 0.3
+    //         }]
+    //       },
+    //       options: {
+    //         scales: {
+    //           x: { ticks: { maxTicksLimit: 6 } },
+    //           y: { beginAtZero: true, title: { display: true, text: "Value" } }
+    //         },
+    //         plugins: { legend: { display: false } },
+    //         responsive: true,
+    //         maintainAspectRatio: false
+    //       }
+    //     });
+    //   } else {
+    //     const chart = charts[`${cityKey}-${sensor}`];
+    //     chart.data.labels = [...buffer.labels];
+    //     chart.data.datasets[0].data = [...buffer[sensor]];
+    //     chart.update();
+    //   }
+    // });
+//   });
+// }
+
+    // function loadSettings() {
+    //   document.getElementById("main-content").innerHTML = `
+    //     <h2>Settings</h2>
+    //     <div class="card-container">
+    //       <div class="card"><h3>Set Baud Rate</h3><input type="text" placeholder="9600" /></div>
+    //       <div class="card"><h3>Change Port</h3><input type="text" placeholder="COM3" /></div>
+    //     </div>
+    //   `;
+    // }
+    function loadSettings() {
+  document.getElementById("main-content").innerHTML = `
+    <div style="position: relative; padding-top: 10px;">
+      <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" alt="Logo" 
+           style="position: absolute; top: 0; right: 0; height: 80px; width: auto; object-fit: contain;" />
+      <h2 style="margin-top: 0;">Settings</h2>
+      <div class="card-container">
+        <div class="card">
+          <h3>Set Baud Rate</h3>
+          <input type="text" placeholder="9600" />
+        </div>
+        <div class="card">
+          <h3>Change Port</h3>
+          <input type="text" placeholder="COM3" />
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function loadAnalyticsApiCall() {
+  document.getElementById("main-content").innerHTML = `
+    <div style="position: relative; padding-top: 10px;">
+      <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" alt="Logo" 
+           style="position: absolute; top: 0; right: 0; height: 80px; width: auto; object-fit: contain;" />
+      <h2 style="margin-top: 0;">Analytics</h2>
+      <canvas id="summaryChart"></canvas>
+      <p id="loading">Loading data...</p>
+    </div>
+  `;
+
+  fetch("http://3.108.220.219:5000/samvaad-ui/get_sensor_readings")
+    .then(response => response.json())
+    .then(data => {
+      document.getElementById("loading").remove();
+
+      if (!Array.isArray(data) || data.length === 0) {
+        document.getElementById("main-content").innerHTML += "<p>No data available</p>";
+        return;
+      }
+
+      const sensorSums = { sensor1: 0, sensor2: 0, sensor3: 0, sensor4: 0 };
+      const count = data.length;
+
+      data.forEach(reading => {
+        sensorSums.sensor1 += reading.sensor1 || 0;
+        sensorSums.sensor2 += reading.sensor2 || 0;
+        sensorSums.sensor3 += reading.sensor3 || 0;
+        sensorSums.sensor4 += reading.sensor4 || 0;
+      });
+
+      const avgValues = [
+        sensorSums.sensor1 / count,
+        sensorSums.sensor2 / count,
+        sensorSums.sensor3 / count,
+        sensorSums.sensor4 / count
+      ];
+
+      new Chart(document.getElementById("summaryChart"), {
+        type: "bar",
+        data: {
+          labels: ["Sensor 1", "Sensor 2", "Sensor 3", "Sensor 4"],
+          datasets: [{
+            label: "Avg Sensor Value",
+            data: avgValues,
+            backgroundColor: ["#3498db", "#2ecc71", "#f39c12", "#e74c3c"]
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            title: { display: true, text: 'Sensor Readings Summary (Averages)' }
+          },
+          scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 5 } }
+          }
+        }
+      });
+    })
+    .catch(error => {
+      console.error("Failed to load analytics:", error);
+      document.getElementById("main-content").innerHTML += `<p>Error loading data.</p>`;
+    });
+}
+function loadAnalytics() {
+  document.getElementById("main-content").innerHTML = `
+    <div style="padding: 20px;">
+      <h2>Analytics (Simulated)</h2>
+
+      <label><b>Select City:</b></label>
+      <select id="citySelect" onchange="updateCharts()" style="padding: 8px; margin-left: 10px;">
+        <option value="Delhi">Delhi</option>
+        <option value="Mumbai">Mumbai</option>
+        <option value="Bangalore">Bangalore</option>
+        <option value="Chennai">Chennai</option>
+      </select>
+
+      <div id="deviationBox" style="margin-top: 15px; font-size: 16px; font-weight: bold;"></div>
+
+      <div class="chart-card">
+        <h3>Average Sensor Readings</h3>
+        <canvas id="barChart" width="600" height="220" class="analytics-chart"></canvas>
+      </div>
+
+    </div>
+  `;
+
+  generateSimulatedData();
+  updateCharts();
+}
+
+// ------------------------------------
+// SIMULATED SENSOR DATA FOR 4 CITIES
+// ------------------------------------
+let cityData = {};
+
+function generateSimulatedData() {
+  const cities = ["Delhi", "Mumbai", "Bangalore", "Chennai"];
+  cities.forEach(city => {
+    let readings = [];
+    for (let i = 0; i < 50; i++) {
+      readings.push({
+        sensor1: 40 + Math.random() * 30,
+        sensor2: 20 + Math.random() * 50,
+        sensor3: 30 + Math.random() * 20,
+        sensor4: 10 + Math.random() * 40
+      });
+    }
+
+    let hourlyTrend = [];
+    for (let i = 0; i < 24; i++) {
+      hourlyTrend.push({
+        hour: i,
+        value: 20 + Math.random() * 80
+      });
+    }
+
+    cityData[city] = { readings, hourlyTrend };
+  });
+}
+
+// ------------------------------------
+// RENDER CHARTS
+// ------------------------------------
+let barChartInstance = null;
+let lineChartInstance = null;
+
+function updateCharts() {
+  const city = document.getElementById("citySelect").value;
+  const data = cityData[city];
+
+  // ---- Calculate averages ----
+  const avg = [
+    average(data.readings, "sensor1"),
+    average(data.readings, "sensor2"),
+    average(data.readings, "sensor3"),
+    average(data.readings, "sensor4"),
+  ];
+
+  // ---- Calculate deviation ----
+  const deviation = Math.max(...avg) - Math.min(...avg);
+  document.getElementById("deviationBox").innerHTML =
+    `Citywise Deviation: <span style="color:#e74c3c">${deviation.toFixed(2)}</span> units`;
+
+  // ---- Destroy old charts ----
+  if (barChartInstance) barChartInstance.destroy();
+  if (lineChartInstance) lineChartInstance.destroy();
+
+  // ---- Create bar chart ----
+  barChartInstance = new Chart(document.getElementById("barChart"), {
+    type: "bar",
+    data: {
+      labels: ["CO₂", "NH₃", "SO₂", "H₂S"],
+      datasets: [{
+        label: "Avg Sensor Value",
+        data: avg,
+        backgroundColor: ["#3498db", "#2ecc71", "#f39c12", "#e74c3c"],
+        borderRadius: 8
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+
+  // ---- Create line chart ----
+  lineChartInstance = new Chart(document.getElementById("lineChart"), {
+    type: "line",
+    data: {
+      labels: data.hourlyTrend.map(x => x.hour + ":00"),
+      datasets: [{
+        label: "Sensor Trend",
+        data: data.hourlyTrend.map(x => x.value),
+        fill: true,
+        tension: 0.45,
+        borderWidth: 3,
+        borderColor: "#3498db",
+        backgroundColor: "rgba(52,152,219,0.20)"
+      }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false }
+      }
+    }
+  });
+}
+
+// Helper
+function average(data, field) {
+  return data.reduce((sum, r) => sum + r[field], 0) / data.length;
+}
+
+    function formatTime(str) {
+       const parts = str.split(" ");
+       const time = parts[1] || "";
+       return time.slice(0, 5); // returns "HH:mm"
+    }
+
+    window.onload = loadHome;
+  </script>
+</body>
+</html>

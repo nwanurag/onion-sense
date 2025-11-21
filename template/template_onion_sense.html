@@ -1,0 +1,2938 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>City Sensor Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <!-- Add this in <head> if not already -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1"></script>
+  <script src="https://cdn.canvasjs.com/canvasjs.min.js"></script>
+  <!-- jsPDF library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <!-- SheetJS library -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+  <style>
+    body {
+      width: 100%;
+  margin: auto;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+  background-color: #f0f2f5;
+}
+
+.sidebar {
+  width: 250px;
+  background-color: #2c3e50;
+  color: #ecf0f1;
+  height: 100vh;
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+     .sidebar h2 {
+       padding: 20px;
+       margin: 0;
+       background-color: #1abc9c;
+       text-align: center;
+       font-size: 22px;
+       border-bottom-left-radius: 12px;
+       border-bottom-right-radius: 12px;
+     }
+
+     .sidebar ul {
+       list-style: none;
+       padding: 0;
+       margin: 0;
+     }
+
+     .sidebar ul li {
+       padding: 15px 20px;
+       cursor: pointer;
+       border-radius: 25px;
+       margin: 5px 10px;
+       display: flex;
+       align-items: center;
+       transition: all 0.3s ease;
+     }
+
+     .sidebar ul li:hover {
+       background-color: #16a085;
+       transform: translateX(5px);
+     }
+
+     .sidebar ul li.active {
+       background-color: #16a085;
+       color: #fff;
+       font-weight: bold;
+       box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+     }
+
+     .sidebar ul li.active::before {
+        content: '';
+        width: 10px;
+        height: 10px;
+        background-color: #fff;
+        border-radius: 50%;
+        margin-right: 10px;
+     }
+     .logout-item ul li {
+        background-color: #e74c3c;
+        margin: 10px;
+        text-align: center;
+     }
+
+     .logout-item ul li:hover {
+        background-color: #c0392b;
+        transform: translateX(0);
+     }
+
+    .main-content {
+      margin-left: 150px;
+      padding: 20px;
+      flex-grow: 1;
+      width: calc(100% - 150px);
+    }
+    .card-container {
+      display: grid;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .info-line {
+      display: flex;
+      justify-content: space-between;
+      margin: 6px 0;
+    }
+    .status {
+      font-weight: bold;
+    }
+    .chart-wrapper {
+      height: 300px;
+    }
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+/*     .card-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2 cards per row */
+  gap: 20px;
+} */
+
+/* .square-card {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  min-width: 280px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-size: 18px;
+}
+
+.info-line {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+  align-items: center;
+} */
+    .square-card {
+    flex: 1 1 calc(25% - 16px); /* 4 cards in a row with spacing */
+    max-width: calc(25% - 16px);
+    background: #f5f5f5;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    box-sizing: border-box;
+    height: auto;
+    min-height: 300px;
+  }
+
+  @media screen and (max-width: 1024px) {
+    .square-card {
+      flex: 1 1 calc(50% - 16px); /* 2 cards per row on tablets */
+      max-width: calc(50% - 16px);
+    }
+  }
+
+  @media screen and (max-width: 600px) {
+    .square-card {
+      flex: 1 1 100%; /* 1 card per row on mobile */
+      max-width: 100%;
+    }
+  }
+
+  .info-line {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 16px;
+  }
+.home-card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  padding: 10px;
+}
+
+.home-square-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  min-height: 280px;
+  font-size: 15px;
+}
+
+.dashboard-alerts {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+.logout-item {
+    margin-top: auto; /* Ensure logout sticks to bottom */
+}
+  </style>
+  <style>
+/* Threshold badge styles */
+.threshold-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 999px;
+  color: #fff;
+  margin-left: 8px;
+  vertical-align: middle;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* color classes (fallback) */
+.badge-blue { background: linear-gradient(90deg,#4facfe,#00f2fe); }
+.badge-green { background: linear-gradient(90deg,#7be495,#2ad39a); }
+.badge-orange { background: linear-gradient(90deg,#ffb86b,#ff8a00); }
+.badge-red { background: linear-gradient(90deg,#ff7a7a,#ff4f4f); }
+.badge-purple { background: linear-gradient(90deg,#cda4ff,#7b61ff); }
+.badge-teal { background: linear-gradient(90deg,#58f0d9,#2bb5ff); }
+
+/* small styling improvements for cards */
+.home-square-card {
+  background: linear-gradient(180deg, #ffffff, #fbfbff);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(10, 20, 40, 0.06);
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.info-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.sensor-name {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size: 15px;
+  color: #333;
+  font-weight: 600;
+}
+
+/* sensor small secondary text (min-max label) */
+.sensor-sub {
+  font-size: 12px;
+  color: #666;
+  margin-left: 6px;
+}
+
+/* When no threshold found */
+.badge-empty {
+  background: #e0e0e0;
+  color: #666;
+}
+
+.card-dashboard {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,.08);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  min-height: 350px;
+}
+.card-header-dashboard {
+  font-size: 18px;
+  margin-bottom: 12px;
+  border-bottom: 2px solid #1a73e8;
+  padding-bottom: 4px;
+  color: #1a73e8;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.select-group-dashboard {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+select {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+}
+canvas {
+  flex: 1;
+  max-height: 250px;
+  margin-top: 10px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+table-dashboard {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: center;
+  font-size: 13px;
+  table-layout: fixed;
+  word-wrap: break-word;
+}
+table th, table td {
+  padding: 12px;
+  font-size: 14px; 
+}
+.city-legend-dashboard {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+.city-legend-dashboard div {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.color-box {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+.card-alerts {
+    background: #fff;
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    min-height: 350px; /* Reduced from 450px */
+    display: flex;
+    flex-direction: column;
+}
+
+.card-alerts canvas {
+    flex: 1;
+    width: 100% !important;
+    height: 150px !important; /* Reduced from 200px */
+}
+
+.card-alerts h2 {
+    margin: 0 0 10px 0;
+}
+.alert-count {
+    display: flex;
+    align-items: center;
+    font-size: 28px;
+    margin-bottom: 10px;
+}
+.alert-count .icon {
+    font-size: 32px;
+    margin-right: 8px;
+    color: #f44336;
+}
+.card-alerts .sensor-filter-alerts {
+    margin-bottom: 15px;
+}
+.card-alerts .sensor-filter-alerts select,
+.card-alerts .sensor-filter-alerts input {
+    margin-right: 10px;
+    padding: 4px 8px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+}
+
+
+.card-analytics:hover { transform: translateY(-3px); }
+.card-header-analytics { font-size:16px; margin-bottom:8px; border-bottom:2px solid #1a73e8; padding-bottom:4px; color:#1a73e8; display:flex; justify-content:space-between; align-items:center; }
+.select-group-analytics { display:flex; gap:8px; align-items:center; }
+select,input[type=date],button { padding:5px 8px; font-size:13px; border-radius:4px; border:1px solid #ccc; }
+.status-chip { font-size:0.85em; font-weight:bold; padding:3px 8px; border-radius:12px; color:#fff; display:inline-block; }
+.status-offline { background-color:#e53935; }
+.status-live { background-color:#43a047; }
+.reading-wrapper-analytics { display:flex; justify-content:space-between; align-items:center; margin-top:5px; }
+
+.chart-wrapper-analytics > div {
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 250px;
+}
+.chart-wrapper-analytics canvas {
+  background: transparent !important;  /* ✅ no gray bg */
+  border: none !important;             /* ✅ remove blue border */
+  z-index: auto !important;
+  position: static !important;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr); /* 3 per row */
+  gap: 20px;
+}
+
+.card-analytics {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-wrapper-analytics {
+  height: 280px;     /* fixed height */
+  overflow: hidden;  /* ✅ stops gray canvas overlap */
+  margin-top: 8px;
+  padding-bottom: 15px;
+}
+
+.chart-container {
+  width: 100%;
+  height: 100%;
+}
+
+
+/* Responsive tweaks */
+@media (max-width: 600px) {
+  .home-square-card { min-height: 200px; padding: 12px; }
+}
+</style>
+</head>
+<body>
+  <div class="sidebar">
+      <h2>Dashboard</h2>
+      <ul>
+        <li onclick="loadHome()">Home</li>
+        <li onclick="loadDashboard()">Dashboard</li>
+        <li onclick="loadCity('Delhi')">Delhi</li>
+        <li onclick="loadCity('Mumbai')">Mumbai</li>
+        <li onclick="loadCity('Hyderabad')">Hyderabad</li>
+        <li onclick="loadCity('Pune')">Pune</li>
+        <li onclick="loadAlerts('Pune')">Alerts</li>
+        <li onclick="loadAnalytics('Pune')">Analytics</li>
+      </ul>
+    </div>
+    <div class="logout-item">
+      <ul>
+        <li onclick="logoutUser()">Logout</li>
+      </ul>
+    </div>
+
+  <div class="main-content" id="main-content"></div>
+  <script>
+    // Make sidebar items selectable
+    const sidebarItems = document.querySelectorAll('.sidebar ul li');
+
+    sidebarItems.forEach(item => {
+        item.addEventListener('click', () => {
+            sidebarItems.forEach(i => i.classList.remove('active')); // remove active from all
+            item.classList.add('active'); // add active to clicked
+        });
+    });
+
+    // let chartBuffers = {};
+    // let charts = {};
+    let currentCitySocket = null;
+    let chartLabels = {};
+    const pageCache = {};
+async function loadHome() {
+  const container = document.getElementById("main-content");
+container.innerHTML = `
+
+  <div style="
+    display: flex; 
+    align-items: center; 
+    justify-content: space-between; 
+    flex-wrap: wrap; 
+    padding: 18px 20px; 
+    border-radius: 0; 
+    background: #ffffff;   /* White background */
+    color: #333; 
+    border-bottom: 2px solid #ddd;
+    margin-bottom: 20px;
+  ">
+    <!-- Left controls -->
+    <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 16px;">
+      <select id="citySelect" 
+        style="padding: 12px 16px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; outline: none; cursor: pointer; min-width: 170px; background:white; color:#333;">
+        <option value="">Select City</option>
+        <option value="delhi">Delhi</option>
+        <option value="mumbai">Mumbai</option>
+        <option value="hyderabad">Hyderabad</option>
+        <option value="pune">Pune</option>
+      </select>
+      <input type="date" id="startDate" 
+        style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+      <input type="date" id="endDate" 
+        style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+
+      <!-- Export Dropdown -->
+      <div style="position: relative;">
+        <button id="exportDropdownBtn" 
+          style="padding: 12px 18px; font-size: 16px; font-weight: 600; cursor: pointer; background-color: #1a73e8; color: #fff; border: none; border-radius: 6px; min-width: 150px;">
+          ⬇️ Export
+        </button>
+        <div id="exportMenu" 
+          style="display: none; position: absolute; top: 110%; left: 0; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.08); min-width: 160px; z-index: 1000; font-size: 15px; color:#333;">
+          <div class="export-option" data-type="csv" style="padding: 12px; cursor: pointer;">📄 Export as CSV</div>
+          <div class="export-option" data-type="xls" style="padding: 12px; cursor: pointer;">📊 Export as XLS</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right section with logo + profile -->
+    <div style="display: flex; align-items: center; gap: 20px;">
+
+      <!-- Profile dropdown -->
+      <div style="position: relative;">
+        <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/userpic.png" 
+          alt="Profile" 
+          id="profileBtn"
+          style="height: 42px; width: 42px; border-radius: 50%; cursor: pointer; border: 2px solid #ccc;" />
+
+        <div id="profileMenu" 
+          style="display: none; position: absolute; right: 0; top: 110%; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); min-width: 250px; z-index: 1000; font-size: 15px; color:#333;">
+          <div style="padding: 12px; border-bottom: 1px solid #eee; font-weight: bold;">👤 My Profile</div>
+          <div style="padding: 12px;">
+            <p style="margin: 4px 0;"><strong>Name:</strong> Anurag Mishra</p>
+            <p style="margin: 4px 0;"><strong>Username:</strong> anurag123</p>
+            <p style="margin: 4px 0;"><strong>Email:</strong> anurag@example.com</p>
+          </div>
+          <div style="padding: 12px; cursor: pointer; color: red; border-top: 1px solid #eee;">🚪 Logout</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Dashboard rows -->
+  <div id="threshold-row" style="margin-top: 10px; display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap: 16px;"></div>
+  <div id="status-row" style="margin-top: 20px; display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap: 16px;"></div>
+
+  <!-- Info Modal -->
+  <div id="infoModal" 
+    style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.6); z-index:2000; align-items:center; justify-content:center;">
+    <div style="background:white; padding:20px; border-radius:12px; max-width:600px; width:90%; box-shadow:0 4px 12px rgba(0,0,0,0.3); position:relative;">
+      <span id="closeInfoModal" style="position:absolute; top:10px; right:14px; font-size:20px; cursor:pointer;">❌</span>
+      <h2 id="infoTitle" style="margin-bottom:10px; color:#1a73e8;"></h2>
+      <p id="infoContent" style="line-height:1.6; font-size:15px; color:#333;"></p>
+    </div>
+  </div>
+`;
+
+
+  const modal = document.getElementById("infoModal");
+  const closeModal = document.getElementById("closeInfoModal");
+  const infoTitle = document.getElementById("infoTitle");
+  const infoContent = document.getElementById("infoContent");
+  closeModal.addEventListener("click", () => modal.style.display = "none");
+
+  function showInfo(title, content) {
+    infoTitle.textContent = title;
+    infoContent.innerHTML = content;
+    modal.style.display = "flex";
+  }
+  // Dropdown toggle
+  const exportBtn = document.getElementById("exportDropdownBtn");
+  const exportMenu = document.getElementById("exportMenu");
+  exportBtn.addEventListener("click", () => {
+    exportMenu.style.display = exportMenu.style.display === "block" ? "none" : "block";
+  });
+  document.querySelectorAll(".export-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+      alert("Exporting as " + opt.dataset.type.toUpperCase() + "...");
+      exportMenu.style.display = "none";
+      generateAndExport(opt.dataset.type.toUpperCase());
+    });
+  });
+
+  const cities = [
+    { name: "delhi", display: "Delhi", icon: "🏛️", color: "#f28b82" },
+    { name: "mumbai", display: "Mumbai", icon: "🌆", color: "#aecbfa" },
+    { name: "hyderabad", display: "Hyderabad", icon: "🏯", color: "#fdd663" },
+    { name: "pune", display: "Pune", icon: "🌇", color: "#d7aefb" }
+  ];
+
+  const sensors = [
+    { key: "co2", label: "CO₂", icon: "🟢" },
+    { key: "nh3", label: "NH₃", icon: "🧪" },
+    { key: "so2", label: "SO₂", icon: "🌫️" },
+    { key: "h2s", label: "H₂S", icon: "💨" },
+    { key: "temp", label: "Temp", icon: "🌡️" },
+    { key: "humid", label: "Humid", icon: "💧" }
+  ];
+
+  function randomVal(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+  function randomStatus() {
+    return Math.random() > 0.3 ? "Live" : "Offline";
+  }
+
+  const thresholdRow = document.getElementById("threshold-row");
+  const statusRow = document.getElementById("status-row");
+
+  cities.forEach(city => {
+    // --- Threshold card ---
+    const thresholdCard = document.createElement("div");
+    thresholdCard.style.cssText = "background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.12); overflow:hidden;";
+
+    let thresholdSensors = sensors.map(s => {
+      let sensorsList = "";
+      for (let i = 1; i <= 3; i++) {
+        let maxVal = randomVal(70, 100);
+        // Retrieve threshold from localStorage if exists, otherwise random
+        const storedThreshold = localStorage.getItem(`threshold_${city.name}_${s.key}`);
+        let thresholdVal = storedThreshold !== null ? parseFloat(storedThreshold) : randomVal(80, 120);
+
+        let currentVal = randomVal(30, maxVal);
+        let percent = Math.min(100, Math.round((currentVal / maxVal) * 100));
+        sensorsList += `
+          <div style="display:flex; align-items:center; justify-content:space-between; font-size:14px; font-weight:500; padding:6px 10px; margin-bottom:6px; background:#fafafa; border-radius:8px; border:1px solid #e0e0e0;">
+            <span>${s.label} - Sensor ${i}</span>
+            <div style="flex:1; margin:0 10px; height:8px; background:#eee; border-radius:6px;">
+              <div style="width:${percent}%; background:${percent > 80 ? '#f28b82' : '#34a853'}; height:100%; border-radius:6px;"></div>
+            </div>
+            <div style="font-size:12px; padding:4px 8px; border-radius:6px; background:#e0e0e0; color:#333;">Max: ${thresholdVal}</div>
+          </div>`;
+      }
+      let aggPercent = randomVal(50, 100);
+      // let thresholdVal = randomVal(80, 120);
+      // Try to retrieve threshold from localStorage for aggregated display if needed
+      const storedThreshold = localStorage.getItem(`threshold_${city.name}_${s.key}`);
+      let thresholdVal = storedThreshold !== null ? parseFloat(storedThreshold) : randomVal(80, 120);
+
+      const rowId = `${city.name}-${s.key}-row`;
+      const detailsId = `${city.name}-${s.key}-details`;
+
+      return `
+        <div id="${rowId}" class="sensor-row" style="padding:12px; border-bottom:1px solid #eee; cursor:pointer;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;">
+            <div style="display:flex; align-items:center; gap:8px; min-width:70px;">
+              <span style="font-size:16px;">${s.icon}</span>
+              <span>${s.label}</span>
+            </div>
+            <div style="flex:1; height:8px; background:#eee; border-radius:6px;">
+              <div style="width:${aggPercent}%; background:${aggPercent > 80 ? '#f28b82' : '#34a853'}; height:100%; border-radius:6px;"></div>
+            </div>
+            <div style="font-size:12px; padding:4px 8px; border-radius:6px; background:#e0e0e0; color:#333;">
+              Max: ${thresholdVal}
+            </div>
+          </div>
+          <div id="${detailsId}" class="sensor-details" style="display:none; margin-top:10px;">
+            ${sensorsList}
+          </div>
+        </div>`;
+    }).join("");
+
+    thresholdCard.innerHTML = `
+       <div style="padding:14px; border-bottom:2px solid #1a73e8; color:#1a73e8; display:flex; align-items:center; justify-content:space-between;">
+         <span style="font-size:18px;">${city.icon} ${city.display}</span>
+         <span class="info-icon" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+       </div>
+       ${thresholdSensors}
+    `;
+
+    thresholdRow.appendChild(thresholdCard);
+    thresholdCard.querySelector(".info-icon").addEventListener("click", () => {
+      showInfo(
+        `${city.display} - Thresholds`,
+        `This card displays the maximum permissible threshold values for each gas and environmental sensor in ${city.display}. 
+        <br><br><b>Interpretation:</b><br>
+        • Progress bar shows how close the current sensor readings are to the threshold.<br>
+        • Green indicates safe levels, while red indicates critical exceedance.<br>
+        • Click a row to view detailed sensor-wise breakdown.`
+      );
+    });
+    // Add event listeners with IDs
+    sensors.forEach(s => {
+      const rowEl = document.getElementById(`${city.name}-${s.key}-row`);
+      const detailsEl = document.getElementById(`${city.name}-${s.key}-details`);
+      rowEl.addEventListener("click", e => {
+        e.stopPropagation();
+        detailsEl.style.display = detailsEl.style.display === "none" ? "block" : "none";
+      });
+    });
+
+    // --- Status card ---
+    const statusCard = document.createElement("div");
+    statusCard.style.cssText = "background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.12); overflow:hidden;";
+
+    let statusSensors = sensors.map(s => {
+      let sensorsList = "";
+      for (let i = 1; i <= 3; i++) {
+        let status = randomStatus();
+        sensorsList += `
+          <div style="display:flex; justify-content:space-between; align-items:center; font-size:15px; font-weight:500; padding:6px 10px; margin-bottom:6px; background:#fafafa; border-radius:8px; border:1px solid #e0e0e0;">
+            <span>${s.label} - Sensor ${i}</span>
+            <span style="padding:4px 8px; border-radius:12px; color:white; background:${status === 'Live' ? '#34a853' : '#ea4335'};">${status}</span>
+          </div>`;
+      }
+      let aggStatus = randomStatus();
+
+      const rowId = `${city.name}-${s.key}-status-row`;
+      const detailsId = `${city.name}-${s.key}-status-details`;
+
+      return `
+        <div id="${rowId}" class="sensor-row" style="padding:12px; border-bottom:1px solid #eee; cursor:pointer;">
+          <div style="display:flex; align-items:center; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:16px;">${s.icon}</span>
+              <span>${s.label}</span>
+            </div>
+            <span style="padding:6px 12px; border-radius:16px; font-size:13px; font-weight:600; color:white; background:${aggStatus === 'Live' ? '#34a853' : '#ea4335'};">${aggStatus}</span>
+          </div>
+          <div id="${detailsId}" class="sensor-details" style="display:none; margin-top:10px;">
+            ${sensorsList}
+          </div>
+        </div>`;
+    }).join("");
+    
+    statusCard.innerHTML = `
+       <div style="padding:14px; border-bottom:2px solid #1a73e8; color:#1a73e8; font-size:18px; display:flex; align-items:center; justify-content:space-between;">
+         <span style="font-size:18px;">${city.icon} ${city.display}</span>
+         <span class="info-icon" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+       </div>
+       ${statusSensors}
+    `;
+
+    statusRow.appendChild(statusCard);
+     statusCard.querySelector(".info-icon").addEventListener("click", () => {
+      showInfo(
+        `${city.display} - Sensor Status`,
+        `This card shows the operational status of all sensors in ${city.display}.<br><br>
+        • <b>Live</b>: Sensor is transmitting valid data.<br>
+        • <b>Offline</b>: Sensor is not sending data, may need maintenance or connectivity check.<br><br>
+        Click a row to view sensor-wise details.`
+      );
+    });
+    sensors.forEach(s => {
+      const rowEl = document.getElementById(`${city.name}-${s.key}-status-row`);
+      const detailsEl = document.getElementById(`${city.name}-${s.key}-status-details`);
+      rowEl.addEventListener("click", e => {
+        e.stopPropagation();
+        detailsEl.style.display = detailsEl.style.display === "none" ? "block" : "none";
+      });
+    });
+  });
+// Toggle profile menu
+    document.getElementById("profileBtn").addEventListener("click", () => {
+      const menu = document.getElementById("profileMenu");
+      menu.style.display = menu.style.display === "block" ? "none" : "block";
+    });
+
+    // Close dropdown if clicked outside
+    window.addEventListener("click", (e) => {
+      if (!e.target.closest("#profileBtn")) {
+        document.getElementById("profileMenu").style.display = "none";
+      }
+    });
+  if (typeof startHomeSocketLiveUpdates === "function") startHomeSocketLiveUpdates();
+}
+    
+        function getRandom(min, max, decimals = 2) {
+            return (Math.random() * (max - min) + min).toFixed(decimals);
+        }
+
+        function pad(n) {
+            return n < 10 ? '0' + n : n;
+        }
+
+        function generateData(startDate, endDate) {
+            const rows = [];
+            rows.push(['date','time','co2','nh3','so2','h2s','temperature','humidity']);
+
+            let current = new Date(startDate);
+            while (current <= endDate) {
+                const date = `${pad(current.getDate())}/${pad(current.getMonth()+1)}/${current.getFullYear()}`;
+                const time = `${pad(current.getHours())}:${pad(current.getMinutes())}:00`;
+                const co2 = getRandom(300, 1000);
+                const nh3 = getRandom(0, 50);
+                const so2 = getRandom(0, 20);
+                const h2s = getRandom(0, 10);
+                const temperature = getRandom(15, 35);
+                const humidity = getRandom(20, 90);
+
+                rows.push([date, time, co2, nh3, so2, h2s, temperature, humidity]);
+                current.setMinutes(current.getMinutes() + 5);
+            }
+            return rows;
+        }
+
+        async function generateAndExport(type) {
+            console.log(type);
+            const startInput = document.getElementById('startDate').value;
+            const endInput = document.getElementById('endDate').value;
+            // const infoDiv = document.getElementById('info');
+
+            if (!startInput || !endInput) {
+                alert("Please select both start and end dates.");
+                return;
+            }
+
+            const startDate = new Date(startInput + "T00:00:00");
+            const endDate = new Date(endInput + "T23:59:59");
+
+            if (startDate > endDate) {
+                alert("Start date must be before end date.");
+                return;
+            }
+
+            const rows = generateData(startDate, endDate);
+            // infoDiv.textContent = `Generated ${rows.length - 1} records.`;
+
+            if (type === 'CSV') {
+                exportCSVFile(rows);
+            } else if (type === 'PDF') {
+                console.log("export pdf before");
+                exportPDF(rows);
+            } else if (type === 'XLS') {
+                exportXLS(rows);
+            }
+        }
+
+        function exportCSVFile(rows) {
+            console.log("export csv");
+            const csvContent = rows.map(e => e.join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sensor_data.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportPDF(rows) {
+            console.log("export pdf");
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            let y = 10;
+            doc.setFontSize(10);
+
+            rows.forEach((row, index) => {
+                const line = row.join(" | ");
+                doc.text(line, 10, y);
+                y += 7;
+                if (y > 280) {
+                    doc.addPage();
+                    y = 10;
+                }
+            });
+
+            doc.save('sensor_data.pdf');
+        }
+
+        function exportXLS(rows) {
+            console.log("export xls");
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data");
+            XLSX.writeFile(wb, 'sensor_data.xlsx');
+        }
+    async function exportCSV() {
+  const city = document.getElementById("citySelect")?.value || "";
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
+
+  if (!start || !end) {
+    alert("Please select a date range");
+    return;
+  }
+
+  try {
+    const token = sessionStorage.getItem("jwt") || localStorage.getItem("jwt"); // or localStorage.getItem("jwt")
+    if (!token) {
+        alert("You are not logged in or session expired.");
+        return;
+    }
+
+    const res = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`, {
+        method: "GET",
+        headers: {
+            "Authorization": "Bearer " + token, // <-- Pass JWT token here
+            "Content-Type": "application/json"
+        }
+    });
+    // const res = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`);
+    if (!res.ok) throw new Error("Failed to fetch data");
+
+    const allData = await res.json();
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    endDate.setHours(23, 59, 59, 999);
+
+    const filteredData = allData.filter(item => {
+      const readingDate = new Date(item.reading_time);
+      return readingDate >= startDate && readingDate <= endDate;
+    });
+
+    if (!filteredData.length) {
+      alert("No data found for the selected range");
+      return;
+    }
+
+    // ✅ Updated column mapping to match API keys
+    const columnMap = {
+      reading_time: "Timestamp",
+      sensor1: "CO2 (ppm)",
+      sensor2: "NH3 (ppm)",
+      sensor3: "SO2 (ppm)",
+      sensor4: "H2S (ppm)",
+      temperature: "Temperature (°C)",
+      humidity: "Humidity (%)"
+    };
+
+    const headers = Object.values(columnMap);
+    const keys = Object.keys(columnMap);
+
+    const csvRows = [];
+    csvRows.push(headers.join(",")); // header row
+
+    filteredData.forEach(row => {
+      const values = keys.map(k => {
+        let val = row[k];
+        if (val === null || val === undefined || val === "None") val = "";
+        return JSON.stringify(val);
+      });
+      csvRows.push(values.join(","));
+    });
+
+    const csvData = csvRows.join("\n");
+
+    const blob = new Blob([csvData], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${city || "all_cities"}_readings_${start}_to_${end}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error(err);
+    alert("Error exporting CSV");
+  }
+}
+
+
+
+     let cityLastUpdated = {
+  delhi: 0,
+  mumbai: 0,
+  hyderabad: 0,
+  pune: 0
+};
+
+function startHomeSocketLiveUpdates() {
+  const socket = io("https://api.neuronwise.in", { transports: ["websocket"] });
+
+  socket.on("connect", () => console.log("Connected to Home socket"));
+
+  socket.on("new_reading", (data) => {
+    const cities = ["delhi", "mumbai", "hyderabad", "pune"];
+    // const sensors = ["sensor1", "sensor2", "sensor3", "sensor4", "sensor5", "sensor6"];
+    const sensors = [
+     { name: "sensor1" },
+     { name: "sensor2" },
+     { name: "sensor3" },
+     { name: "sensor4" },
+     { name: "sensor5" }, // backend sends temp here
+     { name: "sensor6" }  // backend sends humidity here
+    ];
+
+
+    const now = Date.now();
+    cities.forEach(city => {
+      cityLastUpdated[city] = now;
+      sensors.forEach(sensor => {
+      const el = document.getElementById(`${city}-${sensor.name}-status`);
+        if (el) {
+          const value = data[sensor.name];
+          const isConnected = value !== null && value !== undefined;
+          el.textContent = isConnected ? "✅" : "❌";
+          el.style.color = isConnected ? "green" : "red";
+        }
+     });
+
+      // sensors.forEach(sensor => {
+      //   const el = document.getElementById(`${city}-${sensor}-status`);
+      //   if (el) {
+      //     const value = data[sensor];
+      //     const isConnected = value !== null && value !== undefined;
+      //     el.textContent = isConnected ? "✅" : "❌";
+      //     el.style.color = isConnected ? "green" : "red";
+      //   }
+      // });
+    });
+  });
+
+  socket.on("disconnect", () => console.warn("Disconnected from Home socket"));
+
+  // 🕒 Set an interval to check if a city hasn’t updated in 10 seconds
+  setInterval(() => {
+    const now = Date.now();
+    const timeout = 10 * 1000; // 10 seconds
+    const sensors = ["sensor1", "sensor2", "sensor3", "sensor4", "sensor5", "sensor6"];
+
+    for (const city in cityLastUpdated) {
+      if (now - cityLastUpdated[city] > timeout) {
+        sensors.forEach(sensor => {
+          const el = document.getElementById(`${city}-${sensor}-status`);
+          if (el) {
+            el.textContent = "❌";
+            el.style.color = "red";
+          }
+        });
+      }
+    }
+  }, 3000); // check every 3 seconds
+}
+
+    // function loadCity(city) {
+    //   const container = document.getElementById("main-content");
+    //   container.innerHTML = `<h2>${city} Sensors</h2><div class="card-container" id="sensor-cards"></div>`;
+    //   const sensors = ["sensor1", "sensor2", "sensor3", "sensor4"];
+    //   const wrapper = document.getElementById("sensor-cards");
+
+    //   sensors.forEach(sensor => {
+    //     const card = document.createElement("div");
+    //     card.className = "card";
+    //     card.innerHTML = `
+    //       <h3>${sensor}</h3>
+    //       <p>Current: <span id="${sensor}-value">--</span></p>
+    //       <div class="chart-wrapper"><canvas id="chart-${sensor}"></canvas></div>
+    //     `;
+    //     wrapper.appendChild(card);
+    //   });
+
+    //   startCitySocket(city);
+    // }
+    function initChartBuffer(city) {
+      if (!chartBuffers[city]) {
+        chartBuffers[city] = {
+          sensor1: [], sensor2: [], sensor3: [], sensor4: [],sensor5: [], sensor6: [], 
+          labels: []
+        };
+      }
+    }
+    function destroyCityCharts(city) {
+      const cityKey = city.toLowerCase();
+      ["sensor1", "sensor2", "sensor3", "sensor4","sensor5","sensor6"].forEach(sensor => {
+        const chartId = `${cityKey}-${sensor}`;
+        if (charts[chartId]) {
+          charts[chartId].destroy();
+          delete charts[chartId];
+        }
+      });
+    }
+let lastKnownReadings = {};
+let lastKnownStatus = {};
+const MAX_POINTS = 10;
+let chartPage = {}; // track current page per city
+let chartBuffers = {};
+let charts = {};
+
+async function loadCityApiCall(city) {
+  destroyCityCharts(city);
+  const container = document.getElementById("main-content");
+
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
+      <h2 style="margin:0;white-space:nowrap;">City: ${city}</h2>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <input type="date" id="startDate">
+        <input type="date" id="endDate">
+        <button id="exportBtn" style="padding:5px 10px;">Export CSV</button>
+        <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+             alt="Logo" style="height:40px;width:auto;object-fit:contain;cursor:pointer;">
+      </div>
+    </div>
+    <div class="card-container" id="sensor-cards" 
+      style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
+    <div id="pagination" style="margin-top:15px;display:flex;justify-content:center;gap:10px;">
+      <button id="prevBtn">⬅ Prev</button>
+      <button id="nextBtn">Next ➡</button>
+    </div>
+  `;
+
+  const sensors = [
+    { name: "sensor1", label: "CO2", unit: "ppm" },
+    { name: "sensor2", label: "NH3", unit: "ppm" },
+    { name: "sensor3", label: "SO2", unit: "ppm" },
+    { name: "sensor4", label: "H2S", unit: "ppm" },
+    { name: "sensor5", label: "Temperature", unit: "°C" },
+    { name: "sensor6", label: "Humidity", unit: "%" }
+  ];
+
+  // Initialize lastKnownStatus
+  sensors.forEach(s => lastKnownStatus[s.name] = false);
+
+  // Cards
+  const wrapper = document.getElementById("sensor-cards");
+  sensors.forEach(sensor => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.minHeight = "200px";
+    card.innerHTML = `
+      <h3 style="margin:5px 0;display:flex;justify-content:space-between;align-items:center;">
+        ${sensor.label}
+        <span id="${sensor.name}-status" style="font-size:0.9em;color:red;">❌</span>
+      </h3>
+      <p style="margin:0;">Reading: <span id="${sensor.name}-value">--</span> ${sensor.unit}</p>
+      <div class="chart-wrapper" style="height:250px;">
+        <canvas id="chart-${sensor.name}"></canvas>
+      </div>
+    `;
+    wrapper.appendChild(card);
+  });
+
+  try {
+    const token = sessionStorage.getItem("jwt") || localStorage.getItem("jwt"); // or localStorage.getItem("jwt")
+    if (!token) {
+        alert("You are not logged in or session expired.");
+        return;
+    }
+
+    const res = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`, {
+        method: "GET",
+        headers: {
+            "Authorization": "Bearer " + token, // <-- Pass JWT token here
+            "Content-Type": "application/json"
+        }
+    });
+    // const res = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`);
+    const historyData = await res.json();
+
+    const cityKey = city.toLowerCase();
+    chartBuffers[cityKey] = { labels: [], allReadings: historyData };
+    sensors.forEach(s => (chartBuffers[cityKey][s.name] = []));
+
+    chartPage[cityKey] = Math.max(0, Math.floor(historyData.length / MAX_POINTS) - 1);
+
+    drawPage(cityKey, sensors);
+
+    // Export CSV
+    document.getElementById("exportBtn").addEventListener("click", async () => {
+      const start = document.getElementById("startDate").value;
+      const end = document.getElementById("endDate").value;
+      if (!start || !end) { alert("Please select a date range"); return; }
+      let data = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`).then(r=>r.json());
+      data = data.filter(row => {
+        const rowDate = row.reading_time?.split("T")[0];
+        return rowDate >= start && rowDate <= end;
+      });
+      if (!data.length) { alert("No data found"); return; }
+
+      const columnMap = {
+        reading_time: "Timestamp",
+        sensor1: "CO2 (ppm)",
+        sensor2: "NH3 (ppm)",
+        sensor3: "SO2 (ppm)",
+        sensor4: "H2S (ppm)",
+        sensor5: "Temperature (°C)",
+        sensor6: "Humidity (%)"
+      };
+      const headers = Object.values(columnMap);
+      const keys = Object.keys(columnMap);
+      const csvRows = [headers.join(",")];
+      data.forEach(row => csvRows.push(keys.map(k => JSON.stringify(row[k] ?? "")).join(",")));
+
+      const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `sensor_readings_${start}_to_${end}.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // Pagination
+    document.getElementById("prevBtn").addEventListener("click", () => {
+      if (chartPage[cityKey] > 0) { chartPage[cityKey]--; drawPage(cityKey, sensors); }
+    });
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      if ((chartPage[cityKey]+1)*MAX_POINTS < chartBuffers[cityKey].allReadings.length) { chartPage[cityKey]++; drawPage(cityKey, sensors); }
+    });
+
+    // Live updates
+    startCitySocket(city, sensors);
+
+  } catch (err) { console.error("Error fetching historical data:", err); }
+}
+// -----------------------------
+// Socket live update
+// -----------------------------
+    function startCitySocket(city, sensors) {
+  const cityKey = city.toLowerCase();
+  const socket = io("https://api.neuronwise.in/", { transports: ["websocket"] });
+
+  socket.on("connect", () => {
+    console.log(`Connected to ${city} socket`);
+    sensors.forEach(s => updateSensorStatus(s.name, true));
+  });
+
+  socket.on("disconnect", () => {
+    console.warn(`Socket disconnected: ${city}`);
+    sensors.forEach(s => updateSensorStatus(s.name, false));
+  });
+
+  const SENSOR_TIMEOUT = 10000;
+  let lastReadingTime = {};
+  setInterval(() => {
+    const now = Date.now();
+    sensors.forEach(s => {
+      if (!lastReadingTime[s.name] || now - lastReadingTime[s.name] > SENSOR_TIMEOUT) {
+        updateSensorStatus(s.name, false);
+      }
+    });
+  }, 2000);
+  socket.on("new_reading", (data) => {
+    sensors.forEach(s => {
+      let value;
+      switch(s.name){
+        case "sensor5": value = data.sensor5 ?? data.temperature; break;
+        case "sensor6": value = data.sensor6 ?? data.humidity; break;
+        default: value = data[s.name];
+      }
+
+      lastKnownReadings[s.name] = value ?? lastKnownReadings[s.name] ?? "--";
+      const connected = value !== undefined && value !== null;
+      lastKnownStatus[s.name] = connected;
+
+      updateSensorValue(s.name, lastKnownReadings[s.name]);
+      updateSensorStatus(s.name, connected);
+
+      lastReadingTime[s.name] = Date.now();
+    });
+
+    // Keep only last MAX_POINTS for live chart
+    chartBuffers[cityKey].allReadings.push(data);
+    if(chartBuffers[cityKey].allReadings.length > MAX_POINTS) {
+      chartBuffers[cityKey].allReadings.shift();
+    }
+
+    drawPage(cityKey, sensors, true); // update charts only, DOM already updated
+  });
+}
+
+function drawPage(cityKey, sensors, skipDomUpdate = false) {
+  const buffer = chartBuffers[cityKey];
+  const pageReadings = buffer.allReadings.slice(-MAX_POINTS); // always last MAX_POINTS readings
+
+  buffer.labels = [];
+  sensors.forEach(s => (buffer[s.name] = []));
+
+  pageReadings.forEach(row => {
+    const time = formatTime(row.reading_time);
+    buffer.labels.push(time);
+
+    sensors.forEach(s => {
+      let value;
+      switch(s.name){
+        case "sensor5": value = row.sensor5 ?? row.temperature; break;
+        case "sensor6": value = row.sensor6 ?? row.humidity; break;
+        default: value = row[s.name];
+      }
+
+      buffer[s.name].push(value ?? null);
+
+      if(!skipDomUpdate){
+        const valEl = document.getElementById(`${s.name}-value`);
+        if(valEl) valEl.textContent = value ?? "--";
+      }
+    });
+  });
+
+  sensors.forEach(sensor => {
+    const ctx = document.getElementById(`chart-${sensor.name}`);
+    const chartId = `${cityKey}-${sensor.name}`;
+    if(!charts[chartId]){
+      charts[chartId] = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [...buffer.labels],
+          datasets:[{
+            label: sensor.label,
+            data: [...buffer[sensor.name]],
+            borderColor: "#1abc9c",
+            fill:false,
+            tension:0.3,
+            pointStyle:"circle",
+            pointRadius:4,
+            pointHoverRadius:5,
+            pointBackgroundColor:"#1abc9c",
+            pointBorderWidth:0
+          }]
+        },
+        options: {
+          scales: { x:{ticks:{maxTicksLimit:6}}, y:{beginAtZero:true,title:{display:true,text:"Value"}} },
+          plugins: { legend:{display:false} },
+          responsive:true,
+          maintainAspectRatio:false
+        }
+      });
+    } else {
+      const chart = charts[chartId];
+      chart.data.labels = [...buffer.labels];
+      chart.data.datasets[0].data = [...buffer[sensor.name]];
+      chart.update();
+    }
+  });
+}
+
+
+// -----------------------------
+// Helper functions (unchanged)
+// -----------------------------
+function updateSensorValue(sensorName, value) {
+  const el = document.getElementById(`${sensorName}-value`);
+  if (el) el.textContent = value ?? "--";
+}
+function updateSensorStatus(sensorName, connected) {
+  const statusEl = document.getElementById(`${sensorName}-status`);
+  if (statusEl) {
+    statusEl.textContent = connected ? "✅" : "❌";
+    statusEl.style.color = connected ? "green" : "red";
+  }
+}
+
+function logoutUser() {
+    console.log("Logging out user");
+    // Clear JWT token from storage
+    sessionStorage.removeItem("jwt"); 
+    localStorage.removeItem("jwt");
+    // Redirect to login page
+    window.location.href = "https://api.neuronwise.in/nw-ui/nw_analytics_login";
+}
+    function formatTime(str) {
+       const parts = str.split(" ");
+       const time = parts[1] || "";
+       return time.slice(0, 5); // returns "HH:mm"
+    }
+   
+async function loadDashboard() {
+  const container = document.getElementById("main-content");
+  container.innerHTML = '';
+
+  const sensors = ["CO₂", "NH₃", "SO₂", "H₂S", "Temperature", "Humidity"];
+  const cities = ["Delhi", "Mumbai", "Bangalore", "Chennai"];
+  const colors = ["#1a73e8", "#f29900", "#34a853", "#ea4335"];
+
+  const data = {};
+  const alertThreshold = {};
+  cities.forEach(city => {
+    data[city] = Array.from({length: 10}, () => {
+      const obj = {};
+      sensors.forEach(sensor => {
+        obj[sensor] = Math.floor(Math.random() * 100); 
+        obj[sensor+"_dis"] = Math.floor(Math.random() * 5); 
+      });
+      return obj;
+    });
+    alertThreshold[city] = {};
+    sensors.forEach(sensor => {
+      alertThreshold[city][sensor] = Math.floor(Math.random() * 5); 
+    });
+  });
+
+  function getCitySensorValues(city, sensor) {
+    return data[city].map(d => d[sensor]);
+  }
+
+  function getCitySensorDisconnections(city, sensor) {
+    return data[city].map(d => d[sensor+"_dis"]).reduce((a,b)=>a+b,0);
+  }
+
+  function getAlertCount(city, sensor) {
+    return alertThreshold[city][sensor];
+  }
+
+  function createTimeDropdown(id) {
+    return `<select id="${id}">
+              <option value="day">Day</option>
+              <option value="week">Week</option>
+              <option value="month">Month</option>
+              <option value="custom">Custom</option>
+            </select>`;
+  }
+
+  container.innerHTML = `
+  <!-- Header Section -->
+<div style="
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  flex-wrap: wrap; 
+  padding: 18px 20px; 
+  border-radius: 0; 
+  background: #ffffff;
+  color: #333; 
+  border-bottom: 2px solid #ddd;
+  margin-bottom: 20px;
+">
+  <!-- Left controls -->
+  <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 16px;">
+    <select id="citySelect" 
+      style="padding: 12px 16px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; outline: none; cursor: pointer; min-width: 170px; background:white; color:#333;">
+      <option value="">Select City</option>
+      <option value="delhi">Delhi</option>
+      <option value="mumbai">Mumbai</option>
+      <option value="hyderabad">Hyderabad</option>
+      <option value="pune">Pune</option>
+    </select>
+    <input type="date" id="startDate" 
+      style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+    <input type="date" id="endDate" 
+      style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+
+    <!-- Export Dropdown (moved here right after date range) -->
+    <div style="position: relative;">
+      <button id="exportDropdownBtn" 
+        style="padding: 12px 18px; font-size: 16px; font-weight: 600; cursor: pointer; background-color: #1a73e8; color: #fff; border: none; border-radius: 6px; min-width: 150px;">
+        ⬇️ Export
+      </button>
+      <div id="exportMenu" 
+        style="display: none; position: absolute; top: 110%; left: 0; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.08); min-width: 160px; z-index: 1000; font-size: 15px; color:#333;">
+        <div class="export-option" data-type="csv" style="padding: 12px; cursor: pointer;">📄 Export as CSV</div>
+        <div class="export-option" data-type="xls" style="padding: 12px; cursor: pointer;">📊 Export as XLS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right logo -->
+  <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+    alt="Logo" 
+    style="height: 60px; width: auto;" />
+</div>
+
+  <div class="grid">
+    <div class="card-dashboard" id="sensor-status">
+      <div class="card-header-dashboard" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span>Sensor Status</span>
+        <span class="info-icon" data-info="Shows real-time status of all sensors" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+        </div>
+        <div class="select-group-dashboard">
+          ${createTimeDropdown('sensorStatusTime')}
+        </div>
+      </div>
+    </div>
+    <div class="card-dashboard">
+      <div class="card-header-dashboard" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span>City Comparison</span>
+        <span class="info-icon" data-info="Compare sensor values across cities" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+        </div>
+        <div class="select-group-dashboard">
+          <select id="comparisonSelect">${sensors.map(s => `<option value="${s}">${s}</option>`).join('')}</select>
+          ${createTimeDropdown('comparisonTime')}
+        </div>
+      </div>
+      <canvas id="cityComparison"></canvas>
+      <div class="city-legend-dashboard" id="cityLegend"></div>
+    </div>
+    <div class="card-dashboard">
+      <div class="card-header-dashboard" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span>City Pie Chart</span>
+        <span class="info-icon" data-info="Pie chart distribution of selected sensor across cities" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+        </div>
+        <div class="select-group-dashboard">
+          <select id="pieSelect">${sensors.map(s => `<option value="${s}">${s}</option>`).join('')}</select>
+          ${createTimeDropdown('pieTime')}
+        </div>
+      </div>
+      <canvas id="cityPieChart"></canvas>
+      <div class="city-legend-dashboard" id="pieLegend"></div>
+    </div>
+    <div class="card-dashboard">
+      <div class="card-header-dashboard" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span>Historical Trends</span>
+        <span class="info-icon" data-info="Shows past sensor readings with trends" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+        </div>
+        <div class="select-group-dashboard">
+          ${createTimeDropdown('historyTime')}
+        </div>
+      </div>
+      <canvas id="history"></canvas>
+    </div>
+    <div class="card-dashboard" id="alert-threshold">
+      <div class="card-header-dashboard" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span>Threshold Breach</span>
+        <span class="info-icon" data-info="Alerts when sensor values exceed threshold" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+        </div>
+        <div class="select-group-dashboard">
+          ${createTimeDropdown('alertThresholdTime')}
+        </div>
+      </div>
+    </div>
+    <div class="card-dashboard" id="humidity">
+      <div class="card-header-dashboard" style="display:flex; justify-content:space-between; align-items:center;">
+      <div style="display:flex; align-items:center; gap:6px;">
+        <span>Sensor Alerts</span>
+        <span class="info-icon" data-info="Live alerts from sensors" style="cursor:pointer; font-size:18px; color:#555;">ℹ️</span>
+        </div>
+        <div class="select-group-dashboard">
+          ${createTimeDropdown('humidityTime')}
+        </div>
+      </div>
+      <div id="sensorAlertsWrapper" style="flex:1; overflow:hidden; margin-top:10px; position:relative;">
+        <div id="sensorAlerts" style="display:flex; flex-direction:column; position:absolute; bottom:0;"></div>
+      </div>
+    </div>
+  </div>
+  <!-- Modal -->
+  <div id="infoModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); align-items:center; justify-content:center; z-index:1000;">
+    <div style="background:#fff; padding:20px; border-radius:8px; max-width:400px; text-align:center; box-shadow:0 4px 12px rgba(0,0,0,0.2);">
+      <p id="modalContent" style="margin-bottom:20px; font-size:16px; color:#333;"></p>
+      <button onclick="document.getElementById('infoModal').style.display='none'" style="padding:8px 16px; border:none; background:#1a73e8; color:#fff; border-radius:6px; cursor:pointer;">Close</button>
+    </div>
+  </div>
+  `;
+  
+  // Dropdown toggle
+  const exportBtn = document.getElementById("exportDropdownBtn");
+  const exportMenu = document.getElementById("exportMenu");
+  exportBtn.addEventListener("click", () => {
+    exportMenu.style.display = exportMenu.style.display === "block" ? "none" : "block";
+  });
+  document.querySelectorAll(".export-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+      alert("Exporting as " + opt.dataset.type.toUpperCase() + "...");
+      exportMenu.style.display = "none";
+      generateAndExport(opt.dataset.type.toUpperCase());
+    });
+  });
+   // Modal Script
+document.querySelectorAll('.info-icon').forEach(icon => {
+  icon.addEventListener('click', () => {
+    document.getElementById('modalContent').innerText = icon.getAttribute('data-info');
+    document.getElementById('infoModal').style.display = 'flex';
+  });
+});
+  // ---- Tables ----
+  let table = `<table class="table-dashboard" 
+                style="width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; text-align:center;">
+    <thead>
+      <tr style="background:#f5f7fa; color:#333;">
+        <th style="padding:10px; border:1px solid #ddd; text-align:left;">Sensor</th>
+        ${cities.map(c => `<th style="padding:10px; border:1px solid #ddd;">${c}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>`;
+  sensors.forEach(sensor => {
+    table += `<tr>
+              <td style="font-weight:bold; padding:10px; border:1px solid #ddd; background:#fafafa; text-align:left;">${sensor}</td>`;
+      cities.forEach(city => {
+      table += `<td style="padding:10px; border:1px solid #ddd;">${getCitySensorDisconnections(city,sensor)}</td>`;
+    });
+    table += `</tr>`;
+  });
+  table += `</tbody></table>`;
+  document.getElementById("sensor-status").insertAdjacentHTML("beforeend", table);
+  let alertTable = `<table class="table-dashboard" 
+                        style="width:100%; border-collapse:collapse; margin-top:12px; font-size:14px; text-align:center;">
+    <thead>
+      <tr style="background:#f5f7fa; color:#333;">
+        <th style="padding:10px; border:1px solid #ddd; text-align:left;">Sensor</th>
+        ${cities.map(c => `<th style="padding:10px; border:1px solid #ddd;">${c}</th>`).join("")}
+      </tr>
+    </thead>
+    <tbody>`;
+  sensors.forEach(sensor => {
+      alertTable += `<tr>
+                   <td style="font-weight:bold; padding:10px; border:1px solid #ddd; background:#fafafa; text-align:left;">${sensor}</td>`;
+      cities.forEach(city => {
+      alertTable += `<td style="padding:10px; border:1px solid #ddd;">${getAlertCount(city,sensor)}</td>`;
+    });
+    alertTable += `</tr>`;
+  });
+  alertTable += `</tbody></table>`;
+  document.getElementById("alert-threshold").insertAdjacentHTML("beforeend", alertTable);
+
+  // ---- Charts ----
+  const ctxComparison = document.getElementById("cityComparison");
+  const comparisonChart = new Chart(ctxComparison, {
+    type: 'line',
+    data: { labels: Array.from({length: 10}, (_, i) => i+1), datasets: [] },
+    options: { responsive: true, plugins: { legend: { display: false } }, maintainAspectRatio: false }
+  });
+
+  function updateComparison(sensor) {
+    comparisonChart.data.datasets = cities.map((city, i) => ({
+      label: city,
+      data: getCitySensorValues(city, sensor),
+      borderColor: colors[i],
+      backgroundColor: colors[i],
+      fill: false,
+      tension: 0.35,
+      pointRadius: 2
+    }));
+    comparisonChart.update();
+
+    const legendDiv = document.getElementById("cityLegend");
+    legendDiv.innerHTML = '';
+    cities.forEach((city, i) => {
+      legendDiv.innerHTML += `<div><div class="color-box" style="background:${colors[i]}"></div>${city}</div>`;
+    });
+  }
+  document.getElementById("comparisonSelect").addEventListener("change", e => updateComparison(e.target.value));
+  updateComparison(sensors[0]);
+
+  const ctxPie = document.getElementById("cityPieChart");
+  const pieChart = new Chart(ctxPie, {
+    type: 'pie',
+    data: { labels: cities, datasets: [{ data: [], backgroundColor: colors }] },
+    options: { responsive: true, plugins: { legend: { display: false } }, maintainAspectRatio: false }
+  });
+
+  function updatePieChart(sensor) {
+    const latestValues = cities.map(city => getCitySensorValues(city, sensor).slice(-1)[0]);
+    pieChart.data.datasets[0].data = latestValues;
+    pieChart.update();
+
+    const legendDiv = document.getElementById("pieLegend");
+    legendDiv.innerHTML = '';
+    cities.forEach((city, i) => {
+      legendDiv.innerHTML += `<div><div class="color-box" style="background:${colors[i]}"></div>${city}</div>`;
+    });
+  }
+  document.getElementById("pieSelect").addEventListener("change", e => updatePieChart(e.target.value));
+  updatePieChart(sensors[0]);
+
+  new Chart(document.getElementById("history"), {
+    type: "line",
+    data: { labels: Array.from({length: 15}, (_, i) => i+1), datasets: [{label:"CO₂ Delhi",data:Array.from({length:15},()=>Math.random()*100),borderColor:"#1a73e8",fill:false,tension:0.35}] },
+    options: { responsive: true, plugins: { legend: { display: false } }, maintainAspectRatio: false },
+  });
+
+  // ---- Sensor Alerts ----
+  const sensorAlertsDiv = document.getElementById("sensorAlerts");
+  let allAlerts = [];
+  cities.forEach((city) => {
+    data[city].forEach((reading, index) => {
+      sensors.forEach((sensor, sensorIdx) => {
+        if (reading[sensor+"_dis"]>0) {
+          for(let i=0;i<reading[sensor+"_dis"];i++){
+            const time = `${10+index}:${(10*i+5)%60}`.padStart(5,'0');
+            allAlerts.push({city,sensor,time,color:colors[sensorIdx]});
+          }
+        }
+      });
+    });
+  });
+  allAlerts = allAlerts.slice(-5);
+
+  allAlerts.forEach(alert=>{
+    const div = document.createElement("div");
+    div.style.display="flex";
+    div.style.alignItems="center";
+    div.style.gap="8px";
+    div.style.padding="6px 0";
+    div.style.borderBottom="1px solid #eee";
+
+    const circle = document.createElement("div");
+    circle.style.width="12px";
+    circle.style.height="12px";
+    circle.style.borderRadius="50%";
+    circle.style.backgroundColor=alert.color;
+
+    const text = document.createElement("span");
+    text.innerHTML=`<b>${alert.sensor}</b> in ${alert.city} got disconnected at ${alert.time}`;
+
+    div.appendChild(circle);
+    div.appendChild(text);
+    sensorAlertsDiv.appendChild(div);
+  });
+
+  let position = 0;
+  const alertHeight = 34;
+  function scrollAlerts(){
+    position-=1;
+    if(Math.abs(position)>=alertHeight*allAlerts.length){
+      position=0;
+    }
+    sensorAlertsDiv.style.transform=`translateY(${position}px)`;
+    requestAnimationFrame(scrollAlerts);
+  }
+  requestAnimationFrame(scrollAlerts);
+      
+        function getRandom(min, max, decimals = 2) {
+            return (Math.random() * (max - min) + min).toFixed(decimals);
+        }
+
+        function pad(n) {
+            return n < 10 ? '0' + n : n;
+        }
+
+        function generateData(startDate, endDate) {
+            const rows = [];
+            rows.push(['date','time','co2','nh3','so2','h2s','temperature','humidity']);
+
+            let current = new Date(startDate);
+            while (current <= endDate) {
+                const date = `${pad(current.getDate())}/${pad(current.getMonth()+1)}/${current.getFullYear()}`;
+                const time = `${pad(current.getHours())}:${pad(current.getMinutes())}:00`;
+                const co2 = getRandom(300, 1000);
+                const nh3 = getRandom(0, 50);
+                const so2 = getRandom(0, 20);
+                const h2s = getRandom(0, 10);
+                const temperature = getRandom(15, 35);
+                const humidity = getRandom(20, 90);
+
+                rows.push([date, time, co2, nh3, so2, h2s, temperature, humidity]);
+                current.setMinutes(current.getMinutes() + 5);
+            }
+            return rows;
+        }
+
+        async function generateAndExport(type) {
+            console.log(type);
+            const startInput = document.getElementById('startDate').value;
+            const endInput = document.getElementById('endDate').value;
+            // const infoDiv = document.getElementById('info');
+
+            if (!startInput || !endInput) {
+                alert("Please select both start and end dates.");
+                return;
+            }
+
+            const startDate = new Date(startInput + "T00:00:00");
+            const endDate = new Date(endInput + "T23:59:59");
+
+            if (startDate > endDate) {
+                alert("Start date must be before end date.");
+                return;
+            }
+
+            const rows = generateData(startDate, endDate);
+            // infoDiv.textContent = `Generated ${rows.length - 1} records.`;
+
+            if (type === 'CSV') {
+                exportCSVFile(rows);
+            } else if (type === 'PDF') {
+                console.log("export pdf before");
+                exportPDF(rows);
+            } else if (type === 'XLS') {
+                exportXLS(rows);
+            }
+        }
+
+        function exportCSVFile(rows) {
+            console.log("export csv");
+            const csvContent = rows.map(e => e.join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sensor_data.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportPDF(rows) {
+            console.log("export pdf");
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            let y = 10;
+            doc.setFontSize(10);
+
+            rows.forEach((row, index) => {
+                const line = row.join(" | ");
+                doc.text(line, 10, y);
+                y += 7;
+                if (y > 280) {
+                    doc.addPage();
+                    y = 10;
+                }
+            });
+
+            doc.save('sensor_data.pdf');
+        }
+
+        function exportXLS(rows) {
+            console.log("export xls");
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data");
+            XLSX.writeFile(wb, 'sensor_data.xlsx');
+        }
+
+
+}
+async function loadAlerts() {
+    const container = document.getElementById("main-content");
+    container.innerHTML = `
+        <!-- Header Section -->
+<div style="
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  flex-wrap: wrap; 
+  padding: 18px 20px; 
+  border-radius: 0; 
+  background: #ffffff;
+  color: #333; 
+  border-bottom: 2px solid #ddd;
+  margin-bottom: 20px;
+">
+  <!-- Left controls -->
+  <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 16px;">
+    <select id="citySelect" 
+      style="padding: 12px 16px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; outline: none; cursor: pointer; min-width: 170px; background:white; color:#333;">
+      <option value="">Select City</option>
+      <option value="delhi">Delhi</option>
+      <option value="mumbai">Mumbai</option>
+      <option value="hyderabad">Hyderabad</option>
+      <option value="pune">Pune</option>
+    </select>
+    <input type="date" id="startDate" 
+      style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+    <input type="date" id="endDate" 
+      style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+
+    <!-- Export Dropdown (moved here right after date range) -->
+    <div style="position: relative;">
+      <button id="exportDropdownBtn" 
+        style="padding: 12px 18px; font-size: 16px; font-weight: 600; cursor: pointer; background-color: #1a73e8; color: #fff; border: none; border-radius: 6px; min-width: 150px;">
+        ⬇️ Export
+      </button>
+      <div id="exportMenu" 
+        style="display: none; position: absolute; top: 110%; left: 0; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.08); min-width: 160px; z-index: 1000; font-size: 15px; color:#333;">
+        <div class="export-option" data-type="csv" style="padding: 12px; cursor: pointer;">📄 Export as CSV</div>
+        <div class="export-option" data-type="xls" style="padding: 12px; cursor: pointer;">📊 Export as XLS</div>
+      </div>
+      </div>
+      
+      <!-- Edit Threshold Button -->
+      <button id="editThresholdBtn" 
+        style="padding: 12px 18px; font-size: 16px; font-weight: 600; cursor: pointer; background-color: #4caf50; color: #fff; border: none; border-radius: 6px; min-width: 150px;">
+          ⚙️ Edit Threshold
+      </button>
+  </div>
+
+  <!-- Right logo -->
+  <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+    alt="Logo" 
+    style="height: 60px; width: auto;" />
+</div>
+
+
+        <div id="dashboard-alerts" class="dashboard-alerts"></div>
+    `;
+    
+  // Dropdown toggle
+  const exportBtn = document.getElementById("exportDropdownBtn");
+  const exportMenu = document.getElementById("exportMenu");
+  exportBtn.addEventListener("click", () => {
+    exportMenu.style.display = exportMenu.style.display === "block" ? "none" : "block";
+  });
+  document.querySelectorAll(".export-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+      alert("Exporting as " + opt.dataset.type.toUpperCase() + "...");
+      exportMenu.style.display = "none";
+      generateAndExport(opt.dataset.type.toUpperCase());
+    });
+  });
+      
+        function getRandom(min, max, decimals = 2) {
+            return (Math.random() * (max - min) + min).toFixed(decimals);
+        }
+
+        function pad(n) {
+            return n < 10 ? '0' + n : n;
+        }
+
+        function generateData(startDate, endDate) {
+            const rows = [];
+            rows.push(['date','time','co2','nh3','so2','h2s','temperature','humidity']);
+
+            let current = new Date(startDate);
+            while (current <= endDate) {
+                const date = `${pad(current.getDate())}/${pad(current.getMonth()+1)}/${current.getFullYear()}`;
+                const time = `${pad(current.getHours())}:${pad(current.getMinutes())}:00`;
+                const co2 = getRandom(300, 1000);
+                const nh3 = getRandom(0, 50);
+                const so2 = getRandom(0, 20);
+                const h2s = getRandom(0, 10);
+                const temperature = getRandom(15, 35);
+                const humidity = getRandom(20, 90);
+
+                rows.push([date, time, co2, nh3, so2, h2s, temperature, humidity]);
+                current.setMinutes(current.getMinutes() + 5);
+            }
+            return rows;
+        }
+
+        async function generateAndExport(type) {
+            console.log(type);
+            const startInput = document.getElementById('startDate').value;
+            const endInput = document.getElementById('endDate').value;
+            // const infoDiv = document.getElementById('info');
+
+            if (!startInput || !endInput) {
+                alert("Please select both start and end dates.");
+                return;
+            }
+
+            const startDate = new Date(startInput + "T00:00:00");
+            const endDate = new Date(endInput + "T23:59:59");
+
+            if (startDate > endDate) {
+                alert("Start date must be before end date.");
+                return;
+            }
+
+            const rows = generateData(startDate, endDate);
+            // infoDiv.textContent = `Generated ${rows.length - 1} records.`;
+
+            if (type === 'CSV') {
+                exportCSVFile(rows);
+            } else if (type === 'PDF') {
+                console.log("export pdf before");
+                exportPDF(rows);
+            } else if (type === 'XLS') {
+                exportXLS(rows);
+            }
+        }
+
+        function exportCSVFile(rows) {
+            console.log("export csv");
+            const csvContent = rows.map(e => e.join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sensor_data.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportPDF(rows) {
+            console.log("export pdf");
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            let y = 10;
+            doc.setFontSize(10);
+
+            rows.forEach((row, index) => {
+                const line = row.join(" | ");
+                doc.text(line, 10, y);
+                y += 7;
+                if (y > 280) {
+                    doc.addPage();
+                    y = 10;
+                }
+            });
+
+            doc.save('sensor_data.pdf');
+        }
+
+        function exportXLS(rows) {
+            console.log("export xls");
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data");
+            XLSX.writeFile(wb, 'sensor_data.xlsx');
+        }
+    // Handle Edit Threshold button click
+const editThresholdBtn = document.getElementById("editThresholdBtn");
+editThresholdBtn.addEventListener("click", () => {
+    openEditThresholdModal();
+});
+
+function openEditThresholdModal() {
+    // Create overlay
+    const overlay = document.createElement("div");
+    overlay.style.position = "fixed";
+    overlay.style.top = "0";
+    overlay.style.left = "0";
+    overlay.style.width = "100%";
+    overlay.style.height = "100%";
+    overlay.style.backgroundColor = "rgba(0,0,0,0.5)";
+    overlay.style.display = "flex";
+    overlay.style.alignItems = "center";
+    overlay.style.justifyContent = "center";
+    overlay.style.zIndex = "10000";
+
+    // Modal container
+    const modal = document.createElement("div");
+    modal.style.background = "#fff";
+    modal.style.padding = "20px";
+    modal.style.borderRadius = "8px";
+    modal.style.width = "300px";
+    modal.style.boxShadow = "0 4px 8px rgba(0,0,0,0.2)";
+    modal.innerHTML = `
+        <h3 style="margin-top:0;">Edit Threshold</h3>
+        
+        <label for="modalCitySelect">Select City</label><br>
+        <select id="modalCitySelect" style="width:100%; padding:8px; margin-bottom:15px;">
+            <option value="delhi">Delhi</option>
+            <option value="mumbai">Mumbai</option>
+            <option value="hyderabad">Hyderabad</option>
+            <option value="pune">Pune</option>
+        </select>
+
+        <label for="modalSensorSelect">Select Sensor</label><br>
+        <select id="modalSensorSelect" style="width:100%; padding:8px; margin-bottom:15px;">
+            <option value="co2">CO2</option>
+            <option value="nh3">NH3</option>
+            <option value="so2">SO2</option>
+            <option value="h2s">H2S</option>
+            <option value="temperature">Temperature</option>
+            <option value="humidity">Humidity</option>
+        </select>
+
+        <label for="modalThresholdInput">Threshold Value</label><br>
+        <input id="modalThresholdInput" type="number" style="width:100%; padding:8px; margin-bottom:15px;" placeholder="Enter value">
+
+        <div style="text-align:right;">
+            <button id="modalSaveBtn" style="padding:8px 16px; background:#4caf50; color:#fff; border:none; border-radius:4px; cursor:pointer;">Save</button>
+            <button id="modalCancelBtn" style="padding:8px 16px; background:#f44336; color:#fff; border:none; border-radius:4px; cursor:pointer;">Cancel</button>
+        </div>
+    `;
+
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    const citySelect = modal.querySelector("#modalCitySelect");
+    const sensorSelect = modal.querySelector("#modalSensorSelect");
+    const thresholdInput = modal.querySelector("#modalThresholdInput");
+    const saveBtn = modal.querySelector("#modalSaveBtn");
+    const cancelBtn = modal.querySelector("#modalCancelBtn");
+
+    // Load existing value if available
+    function loadThreshold() {
+        const city = citySelect.value;
+        const sensor = sensorSelect.value;
+        const key = `threshold_${city}_${sensor}`;
+        const value = localStorage.getItem(key);
+        thresholdInput.value = value || "";
+    }
+
+    citySelect.addEventListener("change", loadThreshold);
+    sensorSelect.addEventListener("change", loadThreshold);
+
+    loadThreshold();
+
+    // Save to localStorage
+    saveBtn.addEventListener("click", () => {
+        const city = citySelect.value;
+        const sensor = sensorSelect.value;
+        const value = thresholdInput.value.trim();
+        if (value === "") {
+            alert("Please enter a threshold value.");
+            return;
+        }
+        const key = `threshold_${city}_${sensor}`;
+        localStorage.setItem(key, value);
+        alert("Threshold saved!");
+        document.body.removeChild(overlay);
+    });
+
+    // Cancel button
+    cancelBtn.addEventListener("click", () => {
+        document.body.removeChild(overlay);
+    });
+}
+
+    const dashboard = document.getElementById('dashboard-alerts');
+
+    const sensors = [
+        { name: 'CO2' },
+        { name: 'NH3' },
+        { name: 'SO2' },
+        { name: 'H2S' },
+        { name: 'Temperature' },
+        { name: 'Humidity' },
+    ];
+
+    function getRandomData(days) {
+        const data = [];
+        for (let i = 0; i < days; i++) {
+            data.push(Math.floor(Math.random() * 4)); // Random breaches 0-3
+        }
+        return data;
+    }
+
+    const citySelect = document.getElementById('citySelect');
+
+    sensors.forEach(sensor => {
+        let days = 30;
+
+        const card = document.createElement('div');
+        card.className = 'card-alerts';
+
+        card.innerHTML = `
+            <h2>${sensor.name} Alerts</h2>
+            <div class="sensor-filter-alerts">
+                <select class="timeFilter">
+                    <option value="1">Today</option>
+                    <option value="7">Last 7 Days</option>
+                    <option value="30" selected>Last 30 Days</option>
+                    <option value="custom">Custom</option>
+                </select>
+                <input type="date" class="customStartDate" style="display:none; margin-right:5px;">
+                <input type="date" class="customEndDate" style="display:none;">
+            </div>
+            <div class="alert-count">
+                <div class="icon">⚠️</div>
+                <div class="breach-count">0</div>
+                <div style="margin-left:10px;font-size:14px;color:#666;" class="days-text">Last 30 Days</div>
+            </div>
+            <canvas id="${sensor.name}-chart"></canvas>
+        `;
+        dashboard.appendChild(card);
+
+        const timeFilter = card.querySelector('.timeFilter');
+        const breachDiv = card.querySelector('.breach-count');
+        const daysText = card.querySelector('.days-text');
+        const customStart = card.querySelector('.customStartDate');
+        const customEnd = card.querySelector('.customEndDate');
+
+        timeFilter.addEventListener('change', () => {
+            if(timeFilter.value === 'custom') {
+                customStart.style.display = 'inline-block';
+                customEnd.style.display = 'inline-block';
+            } else {
+                customStart.style.display = 'none';
+                customEnd.style.display = 'none';
+                updateChart(parseInt(timeFilter.value));
+            }
+        });
+
+        function getDaysBetween(start, end) {
+            const diffTime = Math.abs(end - start);
+            return Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1; // include both dates
+        }
+
+        customEnd.addEventListener('change', () => {
+            if(customStart.value && customEnd.value){
+                const start = new Date(customStart.value);
+                const end = new Date(customEnd.value);
+                const days = getDaysBetween(start, end);
+                updateChart(days);
+            }
+        });
+
+        function updateChart(days) {
+            const data = getRandomData(days);
+            const totalBreaches = data.reduce((a,b)=>a+b,0);
+            breachDiv.textContent = totalBreaches;
+            daysText.textContent = days === 1 ? 'Today' : `Last ${days} Days`;
+
+            const ctx = card.querySelector('canvas').getContext('2d');
+            if(card.chart) card.chart.destroy();
+            card.chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: days}, (_, i) => `Day ${i+1}`),
+                    datasets: [{
+                        label: sensor.name,
+                        data: data,
+                        fill: false,
+                        borderColor: '#2196f3',
+                        tension: 0.3,
+                        pointRadius: 0,
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, max: 4 } }
+                }
+            });
+        }
+
+        // Initial chart
+        updateChart(days);
+    });
+}
+
+
+    window.onload = loadHome;
+  </script>
+  <script>
+function loadAnalytics(city) {
+  console.log("🔵 loadAnalytics called for city:", city);
+
+  const sensorsA = [
+    { name: "sensor1", label: "CO2", unit: "ppm", color:"#1a73e8" },
+    { name: "sensor2", label: "NH3", unit: "ppm", color:"#f29900" },
+    { name: "sensor3", label: "SO2", unit: "ppm", color:"#34a853" },
+    { name: "sensor4", label: "H2S", unit: "ppm", color:"#ea4335" },
+    { name: "sensor5", label: "Temperature", unit: "°C", color:"#9c27b0" },
+    { name: "sensor6", label: "Humidity", unit: "%", color:"#00bcd4" }
+  ];
+
+  const MAX_POINTS_A = 100;   // keep more points so scrolling makes sense
+  const VISIBLE_POINTS = 10;  // how many points/candles visible in one window
+  let analyticsInterval = null;
+  const container = document.getElementById("main-content");
+  if (!container) return;
+
+  container.innerHTML = `
+    <!-- Header Section -->
+<div style="
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  flex-wrap: wrap; 
+  padding: 18px 20px; 
+  border-radius: 0; 
+  background: #ffffff;
+  color: #333; 
+  border-bottom: 2px solid #ddd;
+  margin-bottom: 20px;
+">
+  <!-- Left controls -->
+  <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 16px;">
+    <select id="citySelect" 
+      style="padding: 12px 16px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; outline: none; cursor: pointer; min-width: 170px; background:white; color:#333;">
+      <option value="">Select City</option>
+      <option value="delhi">Delhi</option>
+      <option value="mumbai">Mumbai</option>
+      <option value="hyderabad">Hyderabad</option>
+      <option value="pune">Pune</option>
+    </select>
+    <input type="date" id="startDate" 
+      style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+    <input type="date" id="endDate" 
+      style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+
+    <!-- Export Dropdown (moved here right after date range) -->
+    <div style="position: relative;">
+      <button id="exportDropdownBtn" 
+        style="padding: 12px 18px; font-size: 16px; font-weight: 600; cursor: pointer; background-color: #1a73e8; color: #fff; border: none; border-radius: 6px; min-width: 150px;">
+        ⬇️ Export
+      </button>
+      <div id="exportMenu" 
+        style="display: none; position: absolute; top: 110%; left: 0; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.08); min-width: 160px; z-index: 1000; font-size: 15px; color:#333;">
+        <div class="export-option" data-type="csv" style="padding: 12px; cursor: pointer;">📄 Export as CSV</div>
+        <div class="export-option" data-type="xls" style="padding: 12px; cursor: pointer;">📊 Export as XLS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right logo -->
+  <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+    alt="Logo" 
+    style="height: 60px; width: auto;" />
+</div>
+
+    <div class="grid" id="sensor-cards"></div>
+  `;
+  
+  // Dropdown toggle
+  const exportBtn = document.getElementById("exportDropdownBtn");
+  const exportMenu = document.getElementById("exportMenu");
+  exportBtn.addEventListener("click", () => {
+    exportMenu.style.display = exportMenu.style.display === "block" ? "none" : "block";
+  });
+  document.querySelectorAll(".export-option").forEach(opt => {
+    opt.addEventListener("click", () => {
+      alert("Exporting as " + opt.dataset.type.toUpperCase() + "...");
+      exportMenu.style.display = "none";
+      generateAndExport(opt.dataset.type.toUpperCase());
+    });
+  });
+      
+        function getRandom(min, max, decimals = 2) {
+            return (Math.random() * (max - min) + min).toFixed(decimals);
+        }
+
+        function pad(n) {
+            return n < 10 ? '0' + n : n;
+        }
+
+        function generateData(startDate, endDate) {
+            const rows = [];
+            rows.push(['date','time','co2','nh3','so2','h2s','temperature','humidity']);
+
+            let current = new Date(startDate);
+            while (current <= endDate) {
+                const date = `${pad(current.getDate())}/${pad(current.getMonth()+1)}/${current.getFullYear()}`;
+                const time = `${pad(current.getHours())}:${pad(current.getMinutes())}:00`;
+                const co2 = getRandom(300, 1000);
+                const nh3 = getRandom(0, 50);
+                const so2 = getRandom(0, 20);
+                const h2s = getRandom(0, 10);
+                const temperature = getRandom(15, 35);
+                const humidity = getRandom(20, 90);
+
+                rows.push([date, time, co2, nh3, so2, h2s, temperature, humidity]);
+                current.setMinutes(current.getMinutes() + 5);
+            }
+            return rows;
+        }
+
+        async function generateAndExport(type) {
+            console.log(type);
+            const startInput = document.getElementById('startDate').value;
+            const endInput = document.getElementById('endDate').value;
+            // const infoDiv = document.getElementById('info');
+
+            if (!startInput || !endInput) {
+                alert("Please select both start and end dates.");
+                return;
+            }
+
+            const startDate = new Date(startInput + "T00:00:00");
+            const endDate = new Date(endInput + "T23:59:59");
+
+            if (startDate > endDate) {
+                alert("Start date must be before end date.");
+                return;
+            }
+
+            const rows = generateData(startDate, endDate);
+            // infoDiv.textContent = `Generated ${rows.length - 1} records.`;
+
+            if (type === 'CSV') {
+                exportCSVFile(rows);
+            } else if (type === 'PDF') {
+                console.log("export pdf before");
+                exportPDF(rows);
+            } else if (type === 'XLS') {
+                exportXLS(rows);
+            }
+        }
+
+        function exportCSVFile(rows) {
+            console.log("export csv");
+            const csvContent = rows.map(e => e.join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sensor_data.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportPDF(rows) {
+            console.log("export pdf");
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            let y = 10;
+            doc.setFontSize(10);
+
+            rows.forEach((row, index) => {
+                const line = row.join(" | ");
+                doc.text(line, 10, y);
+                y += 7;
+                if (y > 280) {
+                    doc.addPage();
+                    y = 10;
+                }
+            });
+
+            doc.save('sensor_data.pdf');
+        }
+
+        function exportXLS(rows) {
+            console.log("export xls");
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data");
+            XLSX.writeFile(wb, 'sensor_data.xlsx');
+        }
+
+  const wrapper = document.getElementById("sensor-cards");
+  wrapper.innerHTML = "";
+
+  let readingsA = {};
+  let chartsA = {};
+  let candlesA = {};
+  let timeframeA = {};
+  let autoFollowA = {}; // per-sensor flag: true => viewport follows latest data
+
+  const timeframes = {
+    "1m": 60000,
+    "5m": 300000,
+    "15m": 900000,
+    "1h": 3600000
+  };
+
+  // Helper: compute data range + spacing for visible window
+  function _getDataInfo(sensorName, chart) {
+    const dp = (chart.options.data && chart.options.data[0] && chart.options.data[0].dataPoints) || [];
+    if (!dp || dp.length === 0) {
+      const now = Date.now();
+      return { dataMin: now - 60000, dataMax: now, spacingMs: 1000, visibleWindowMs: 1000 * VISIBLE_POINTS };
+    }
+    const firstX = dp[0].x instanceof Date ? dp[0].x.getTime() : (dp[0].x.label ? 0 : new Date(dp[0].x).getTime());
+    const lastX = dp[dp.length - 1].x instanceof Date ? dp[dp.length - 1].x.getTime() : (dp[dp.length - 1].x.label ? dp.length - 1 : new Date(dp[dp.length - 1].x).getTime());
+    let spacingMs = 1000;
+    if (dp.length > 1) {
+      const t0 = dp[0].x instanceof Date ? dp[0].x.getTime() : 0;
+      const t1 = dp[1].x instanceof Date ? dp[1].x.getTime() : 1;
+      spacingMs = Math.max(1, t1 - t0);
+    } else {
+      spacingMs = timeframeA[sensorName] || 1000;
+    }
+    const visibleWindowMs = spacingMs * VISIBLE_POINTS;
+    return { dataMin: firstX, dataMax: lastX, spacingMs, visibleWindowMs };
+  }
+
+  // Helper: shift viewport left (-1) or right (+1)
+  function _shiftViewport(sensorName, direction) {
+    const chart = chartsA[sensorName];
+    if (!chart) return;
+    const info = _getDataInfo(sensorName, chart);
+    const { dataMin, dataMax, visibleWindowMs } = info;
+
+    const curMin = chart.options.axisX.viewportMinimum ? new Date(chart.options.axisX.viewportMinimum).getTime() : (dataMax - visibleWindowMs);
+    const curMax = chart.options.axisX.viewportMaximum ? new Date(chart.options.axisX.viewportMaximum).getTime() : dataMax;
+
+    let newMin = curMin + direction * visibleWindowMs;
+    let newMax = curMax + direction * visibleWindowMs;
+
+    if (newMin < dataMin) {
+      newMin = dataMin;
+      newMax = dataMin + visibleWindowMs;
+      autoFollowA[sensorName] = false;
+    }
+    if (newMax > dataMax) {
+      newMax = dataMax;
+      newMin = dataMax - visibleWindowMs;
+      autoFollowA[sensorName] = true;
+    }
+
+    chart.options.axisX.viewportMinimum = new Date(newMin);
+    chart.options.axisX.viewportMaximum = new Date(newMax);
+    chart.render();
+  }
+
+  sensorsA.forEach(sensor => {
+    readingsA[sensor.name] = Array(MAX_POINTS_A).fill().map(() => Math.floor(Math.random() * 100));
+    timeframeA[sensor.name] = 60000;
+    candlesA[sensor.name] = generateInitialCandles(timeframeA[sensor.name]);
+    autoFollowA[sensor.name] = true;
+
+    const card = document.createElement("div");
+    card.className = "card-analytics";
+    card.innerHTML = `
+      <div class="card-header-analytics">
+        <span>${sensor.label}</span>
+        <div class="select-group">
+          <select id="${sensor.name}-chartType">
+            <option value="line">Line</option>
+            <option value="column">Bar</option>
+            <option value="candlestick">Candlestick</option>
+          </select>
+          <select id="${sensor.name}-timeframe">
+            <option value="1m">1m</option>
+            <option value="5m">5m</option>
+            <option value="15m">15m</option>
+            <option value="1h">1h</option>
+          </select>
+        </div>
+      </div>
+      <div class="reading-wrapper-analytics">
+        <p style="margin:0;">Reading: <span id="${sensor.name}-value">--</span> ${sensor.unit}</p>
+        <span id="${sensor.name}-status" class="status-chip status-offline">Offline</span>
+      </div>
+      <div class="chart-wrapper-analytics">
+        <div id="chart-${sensor.name}" class="chart-container"></div>
+      </div>
+      <div style="display:flex;justify-content:center;gap:8px;margin-top:8px;">
+        <button id="${sensor.name}-prev" style="padding:6px 10px;cursor:pointer;">◀</button>
+        <button id="${sensor.name}-next" style="padding:6px 10px;cursor:pointer;">▶</button>
+      </div>
+    `;
+    wrapper.appendChild(card);
+
+    chartsA[sensor.name] = new CanvasJS.Chart(`chart-${sensor.name}`, {
+      animationEnabled: true,
+      theme: "light2",
+      backgroundColor: "transparent",
+      zoomEnabled: false,
+      panEnabled: false,
+      axisX: {
+        valueFormatString: "HH:mm",
+        interval: 1,
+        intervalType: "minute",
+        margin: 5 // ✅ ensures first/last candle not cut
+      },
+      axisY: { title: sensor.unit },
+      data: [{
+        type: "line",
+        color: sensor.color,
+        lineThickness: 2,
+        markerSize: 4,
+        dataPoints: readingsA[sensor.name].map((val, i) => ({
+          x: new Date(Date.now() - (MAX_POINTS_A - i) * 1000),
+          y: val
+        }))
+      }]
+    });
+    chartsA[sensor.name].render();
+
+    (function initViewport() {
+      const chart = chartsA[sensor.name];
+      const dp = chart.options.data[0].dataPoints || [];
+      if (dp.length > VISIBLE_POINTS) {
+        chart.options.axisX.viewportMinimum = dp[dp.length - VISIBLE_POINTS].x;
+        chart.options.axisX.viewportMaximum = dp[dp.length - 1].x;
+        chart.render();
+      }
+    })();
+
+    document.getElementById(`${sensor.name}-prev`).addEventListener('click', () => _shiftViewport(sensor.name, -1));
+    document.getElementById(`${sensor.name}-next`).addEventListener('click', () => _shiftViewport(sensor.name, +1));
+
+    document.getElementById(`${sensor.name}-chartType`).addEventListener("change", () => {
+      updateChart(sensor.name, chartsA, readingsA, candlesA, timeframeA, sensorsA);
+    });
+    document.getElementById(`${sensor.name}-timeframe`).addEventListener("change", e => {
+      timeframeA[sensor.name] = timeframes[e.target.value];
+      candlesA[sensor.name] = generateInitialCandles(timeframeA[sensor.name]);
+      updateChart(sensor.name, chartsA, readingsA, candlesA, timeframeA, sensorsA);
+    });
+  });
+
+  if (analyticsInterval) clearInterval(analyticsInterval);
+  analyticsInterval = setInterval(() => {
+    sensorsA.forEach(sensor => {
+      const chart = chartsA[sensor.name];
+      const newVal = Math.floor(Math.random() * 100);
+      readingsA[sensor.name].push(newVal);
+      if (readingsA[sensor.name].length > MAX_POINTS_A) readingsA[sensor.name].shift();
+
+      document.getElementById(`${sensor.name}-value`).innerText = newVal;
+      const statusEl = document.getElementById(`${sensor.name}-status`);
+      const isLive = Math.random() > 0.3;
+      statusEl.innerText = isLive ? "Live" : "Offline";
+      statusEl.className = "status-chip " + (isLive ? "status-live" : "status-offline");
+
+      const type = document.getElementById(`${sensor.name}-chartType`).value;
+      if (type === "candlestick") {
+        let data = candlesA[sensor.name];
+        let last = data[data.length - 1];
+        const now = Date.now();
+        last.y[1] = Math.max(last.y[1], newVal);
+        last.y[2] = Math.min(last.y[2], newVal);
+        last.y[3] = newVal;
+        if (now - last.x.getTime() >= timeframeA[sensor.name]) {
+          data.push({ x: new Date(now), y: [newVal, newVal, newVal, newVal] });
+          if (data.length > MAX_POINTS_A) data.shift();
+        }
+        chart.options.data[0].dataPoints = data;
+      } else if (type === "line") {
+        const dp = chart.options.data[0].dataPoints || [];
+        dp.push({ x: new Date(), y: newVal });
+        if (dp.length > MAX_POINTS_A) dp.shift();
+        chart.options.data[0].dataPoints = dp;
+      } else if (type === "column") {
+        chart.options.data[0].dataPoints = readingsA[sensor.name].map((val, i) => ({
+          x: i, y: val
+        }));
+      }
+
+      if (autoFollowA[sensor.name]) {
+        const info = _getDataInfo(sensor.name, chart);
+        chart.options.axisX.viewportMaximum = new Date(info.dataMax);
+        chart.options.axisX.viewportMinimum = new Date(Math.max(info.dataMin, info.dataMax - info.visibleWindowMs));
+      }
+      chart.render();
+    });
+  }, 2000);
+}
+
+function generateInitialCandles(frameSizeMs) {
+  let base = 50;
+  const now = Date.now();
+  const arr = [];
+  for (let i = 20 - 1; i >= 0; i--) {
+    const ts = now - i * frameSizeMs;
+    const open = base + Math.random() * 10 - 5;
+    const close = open + Math.random() * 8 - 4;
+    const high = Math.max(open, close) + Math.random() * 5;
+    const low = Math.min(open, close) - Math.random() * 5;
+    arr.push({ x: new Date(ts), y: [open, high, low, close] });
+    base = close;
+  }
+  return arr;
+}
+
+function updateChart(sensorName, chartsA, readingsA, candlesA, timeframeA, sensorsA) {
+  const sensor = sensorsA.find(s => s.name === sensorName);
+  const chart = chartsA[sensorName];
+  const type = document.getElementById(`${sensorName}-chartType`).value;
+
+  if (type === "candlestick") {
+    chart.options.data[0] = {
+      type: "candlestick",
+      risingColor: "#26a69a",
+      fallingColor: "#ef5350",
+      dataPoints: candlesA[sensorName]
+    };
+  } else if (type === "column") {
+    chart.options.data[0] = {
+      type: "column",
+      color: sensor.color,
+      dataPoints: readingsA[sensorName].map((val, i) => ({
+        x: i, y: val
+      }))
+    };
+  } else {
+    chart.options.data[0] = {
+      type: "line",
+      color: sensor.color,
+      lineThickness: 2,
+      markerSize: 4,
+      dataPoints: readingsA[sensorName].map((val, i) => ({
+        x: new Date(Date.now() - (readingsA[sensorName].length - i) * 1000),
+        y: val
+      }))
+    };
+  }
+  chart.render();
+}
+</script>
+<script>
+const MAX_POINTS_B = 10;
+let chartsB = {};
+let chartIntervals = {};
+
+function loadCity(city) {
+  const container = document.getElementById("main-content");
+  container.innerHTML = `
+    <!-- Header Section -->
+<div style="
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  flex-wrap: wrap; 
+  padding: 18px 20px; 
+  border-radius: 0; 
+  background: #ffffff;
+  color: #333; 
+  border-bottom: 2px solid #ddd;
+  margin-bottom: 20px;
+">
+  <!-- Left controls -->
+  <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 16px;">
+    <select id="citySelect" 
+      style="padding: 12px 16px; font-size: 16px; border: 1px solid #ccc; border-radius: 6px; outline: none; cursor: pointer; min-width: 170px; background:white; color:#333;">
+      <option value="">Select City</option>
+      <option value="delhi">Delhi</option>
+      <option value="mumbai">Mumbai</option>
+      <option value="hyderabad">Hyderabad</option>
+      <option value="pune">Pune</option>
+    </select>
+    <input type="date" id="startDate" 
+      style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+    <input type="date" id="endDate" 
+      style="padding:12px 16px; font-size:16px; border:1px solid #ccc; border-radius:6px; background:white; color:#333;">
+
+    <!-- Export Dropdown (moved here right after date range) -->
+    <div style="position: relative;">
+      <button id="exportDropdownBtn" 
+        style="padding: 12px 18px; font-size: 16px; font-weight: 600; cursor: pointer; background-color: #1a73e8; color: #fff; border: none; border-radius: 6px; min-width: 150px;">
+        ⬇️ Export
+      </button>
+      <div id="exportMenu" 
+        style="display: none; position: absolute; top: 110%; left: 0; background: #fff; border: 1px solid #ccc; border-radius: 6px; box-shadow: 0 4px 8px rgba(0,0,0,0.08); min-width: 160px; z-index: 1000; font-size: 15px; color:#333;">
+        <div class="export-option" data-type="csv" style="padding: 12px; cursor: pointer;">📄 Export as CSV</div>
+        <div class="export-option" data-type="xls" style="padding: 12px; cursor: pointer;">📊 Export as XLS</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right logo -->
+  <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+    alt="Logo" 
+    style="height: 60px; width: auto;" />
+</div>
+
+
+    <!-- Dashboard rows -->
+    <div id="threshold-row" style="margin-top: 20px; display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap: 16px;"></div>
+    <div id="status-row" style="margin-top: 20px; display:grid; grid-template-columns: repeat(auto-fit,minmax(300px,1fr)); gap: 16px;"></div>
+  `;
+
+  // Dropdown toggle
+  const exportBtn = document.getElementById("exportDropdownBtn");
+  const exportMenu = document.getElementById("exportMenu");
+  exportBtn.addEventListener("click", () => {
+    exportMenu.style.display = exportMenu.style.display === "block" ? "none" : "block";
+  });
+    
+        function getRandom(min, max, decimals = 2) {
+            return (Math.random() * (max - min) + min).toFixed(decimals);
+        }
+
+        function pad(n) {
+            return n < 10 ? '0' + n : n;
+        }
+
+        function generateData(startDate, endDate) {
+            const rows = [];
+            rows.push(['date','time','co2','nh3','so2','h2s','temperature','humidity']);
+
+            let current = new Date(startDate);
+            while (current <= endDate) {
+                const date = `${pad(current.getDate())}/${pad(current.getMonth()+1)}/${current.getFullYear()}`;
+                const time = `${pad(current.getHours())}:${pad(current.getMinutes())}:00`;
+                const co2 = getRandom(300, 1000);
+                const nh3 = getRandom(0, 50);
+                const so2 = getRandom(0, 20);
+                const h2s = getRandom(0, 10);
+                const temperature = getRandom(15, 35);
+                const humidity = getRandom(20, 90);
+
+                rows.push([date, time, co2, nh3, so2, h2s, temperature, humidity]);
+                current.setMinutes(current.getMinutes() + 5);
+            }
+            return rows;
+        }
+
+        async function generateAndExport(type) {
+            console.log(type);
+            const startInput = document.getElementById('startDate').value;
+            const endInput = document.getElementById('endDate').value;
+            // const infoDiv = document.getElementById('info');
+
+            if (!startInput || !endInput) {
+                alert("Please select both start and end dates.");
+                return;
+            }
+
+            const startDate = new Date(startInput + "T00:00:00");
+            const endDate = new Date(endInput + "T23:59:59");
+
+            if (startDate > endDate) {
+                alert("Start date must be before end date.");
+                return;
+            }
+
+            const rows = generateData(startDate, endDate);
+            // infoDiv.textContent = `Generated ${rows.length - 1} records.`;
+
+            if (type === 'CSV') {
+                exportCSVFile(rows);
+            } else if (type === 'PDF') {
+                console.log("export pdf before");
+                exportPDF(rows);
+            } else if (type === 'XLS') {
+                exportXLS(rows);
+            }
+        }
+
+        function exportCSVFile(rows) {
+            console.log("export csv");
+            const csvContent = rows.map(e => e.join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sensor_data.csv';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function exportPDF(rows) {
+            console.log("export pdf");
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            let y = 10;
+            doc.setFontSize(10);
+
+            rows.forEach((row, index) => {
+                const line = row.join(" | ");
+                doc.text(line, 10, y);
+                y += 7;
+                if (y > 280) {
+                    doc.addPage();
+                    y = 10;
+                }
+            });
+
+            doc.save('sensor_data.pdf');
+        }
+
+        function exportXLS(rows) {
+            console.log("export xls");
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Data");
+            XLSX.writeFile(wb, 'sensor_data.xlsx');
+        }
+
+  // --- CARDS ---
+  const cardContainer = document.createElement("div");
+  cardContainer.className = "card-container";
+  cardContainer.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:10px;";
+  container.appendChild(cardContainer);
+
+  const sensorsB = [
+    { name: "sensor1", label: "CO2", unit: "ppm" },
+    { name: "sensor2", label: "NH3", unit: "ppm" },
+    { name: "sensor3", label: "SO2", unit: "ppm" },
+    { name: "sensor4", label: "H2S", unit: "ppm" },
+    { name: "sensor5", label: "Temperature", unit: "°C" },
+    { name: "sensor6", label: "Humidity", unit: "%" }
+  ];
+
+  sensorsB.forEach(sensor => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.cssText = "min-height:250px;padding:10px;border:1px solid #ddd;border-radius:8px;position:relative;transition:background 0.3s ease;";
+    card.id = `${sensor.name}-card`;
+
+    card.innerHTML = `
+      <h3>${sensor.label}</h3>
+      <p>
+        Reading: <span id="${sensor.name}-value">--</span> ${sensor.unit} 
+        <span id="${sensor.name}-status" style="
+          float:right;
+          padding:5px 12px;
+          border-radius:20px;
+          font-size:14px;
+          font-weight:bold;
+          color:#fff;
+          background:#ddd;
+          display:inline-block;
+        ">Offline</span>
+      </p>
+      <canvas id="chart-${sensor.name}" style="height:200px;"></canvas>
+    `;
+    cardContainer.appendChild(card);
+
+    // Dummy data
+    const labels = [];
+    const data = [];
+    for (let i = 0; i < MAX_POINTS_B; i++) {
+      labels.push(`T-${MAX_POINTS_B - i}`);
+      data.push(Math.floor(Math.random() * 100));
+    }
+
+    chartsB[sensor.name] = new Chart(document.getElementById(`chart-${sensor.name}`), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: sensor.label,
+          data: data,
+          borderColor: "#1abc9c",
+          borderWidth: 1,           // thinner line
+          fill: false,
+          tension: 0.35,            // smooth curve
+          pointRadius: 2,           // small circles
+          pointHoverRadius: 4,      // highlight on hover
+          pointBackgroundColor: "#1abc9c"
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false, // disable animation to prevent flicker
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true } }
+      }
+    });
+
+    // Initial values
+    updateSensorCard(sensor.name, data[data.length - 1]);
+
+    // Live update every 2s
+    if (chartIntervals[sensor.name]) clearInterval(chartIntervals[sensor.name]);
+    chartIntervals[sensor.name] = setInterval(() => {
+      const chart = chartsB[sensor.name];
+      const newVal = Math.floor(Math.random() * 100);
+      const newLabel = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+
+      chart.data.labels.push(newLabel);
+      chart.data.datasets[0].data.push(newVal);
+
+      if (chart.data.labels.length > MAX_POINTS_B) {
+        chart.data.labels.shift();
+        chart.data.datasets[0].data.shift();
+      }
+
+      chart.update("none"); // no animation, prevents flicker
+      updateSensorCard(sensor.name, newVal);
+    }, 2000);
+  });
+}
+
+// Update card values + status
+function updateSensorCard(sensorName, value) {
+  const valueEl = document.getElementById(`${sensorName}-value`);
+  const statusEl = document.getElementById(`${sensorName}-status`);
+  const cardEl = document.getElementById(`${sensorName}-card`);
+
+  valueEl.textContent = value;
+  const isLive = Math.random() > 0.2; // 80% live, 20% offline
+  statusEl.textContent = isLive ? "Live" : "Offline";
+  statusEl.style.background = isLive ? "#1abc9c" : "#e74c3c";
+
+  // Card background when offline
+  cardEl.style.background = isLive ? "#fff" : "#ffe5e5";
+}
+
+// Dummy export functions
+function exportCSV() { alert("Export CSV clicked!"); }
+function exportPDF() { alert("Export PDF clicked!"); }
+  
+</script>
+
+</body>
+</html>

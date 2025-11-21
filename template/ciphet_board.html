@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>City Sensor Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+  <!-- Add this in <head> if not already -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@1.2.1"></script>
+
+  <style>
+    body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  display: flex;
+  background-color: #f0f2f5;
+}
+
+.sidebar {
+  width: 250px;
+  background-color: #2c3e50;
+  color: #ecf0f1;
+  height: 100vh;
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+     .sidebar h2 {
+       padding: 20px;
+       margin: 0;
+       background-color: #1abc9c;
+       text-align: center;
+       font-size: 22px;
+       border-bottom-left-radius: 12px;
+       border-bottom-right-radius: 12px;
+     }
+
+     .sidebar ul {
+       list-style: none;
+       padding: 0;
+       margin: 0;
+     }
+
+     .sidebar ul li {
+       padding: 15px 20px;
+       cursor: pointer;
+       border-radius: 25px;
+       margin: 5px 10px;
+       display: flex;
+       align-items: center;
+       transition: all 0.3s ease;
+     }
+
+     .sidebar ul li:hover {
+       background-color: #16a085;
+       transform: translateX(5px);
+     }
+
+     .sidebar ul li.active {
+       background-color: #16a085;
+       color: #fff;
+       font-weight: bold;
+       box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+     }
+
+     .sidebar ul li.active::before {
+        content: '';
+        width: 10px;
+        height: 10px;
+        background-color: #fff;
+        border-radius: 50%;
+        margin-right: 10px;
+     }
+     .logout-item ul li {
+        background-color: #e74c3c;
+        margin: 10px;
+        text-align: center;
+     }
+
+     .logout-item ul li:hover {
+        background-color: #c0392b;
+        transform: translateX(0);
+     }
+
+    .main-content {
+      margin-left: 260px;
+      padding: 20px;
+      flex-grow: 1;
+      width: calc(100% - 260px);
+    }
+    .card-container {
+      display: grid;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      padding: 16px;
+      box-sizing: border-box;
+    }
+    .card {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .info-line {
+      display: flex;
+      justify-content: space-between;
+      margin: 6px 0;
+    }
+    .status {
+      font-weight: bold;
+    }
+    .chart-wrapper {
+      height: 300px;
+    }
+    canvas {
+      width: 100% !important;
+      height: 100% !important;
+    }
+/*     .card-container {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2 cards per row */
+  gap: 20px;
+} */
+
+/* .square-card {
+  width: 100%;
+  height: 100%;
+  min-height: 280px;
+  min-width: 280px;
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  font-size: 18px;
+}
+
+.info-line {
+  display: flex;
+  justify-content: space-between;
+  margin: 10px 0;
+  align-items: center;
+} */
+    .square-card {
+    flex: 1 1 calc(25% - 16px); /* 4 cards in a row with spacing */
+    max-width: calc(25% - 16px);
+    background: #f5f5f5;
+    border-radius: 12px;
+    padding: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    box-sizing: border-box;
+    height: auto;
+    min-height: 300px;
+  }
+
+  @media screen and (max-width: 1024px) {
+    .square-card {
+      flex: 1 1 calc(50% - 16px); /* 2 cards per row on tablets */
+      max-width: calc(50% - 16px);
+    }
+  }
+
+  @media screen and (max-width: 600px) {
+    .square-card {
+      flex: 1 1 100%; /* 1 card per row on mobile */
+      max-width: 100%;
+    }
+  }
+
+  .info-line {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 16px;
+  }
+.home-card-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+  padding: 10px;
+}
+
+.home-square-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  min-height: 280px;
+  font-size: 15px;
+}
+.logout-item {
+    margin-top: auto; /* Ensure logout sticks to bottom */
+}
+  </style>
+  <style>
+/* Threshold badge styles */
+.threshold-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 999px;
+  color: #fff;
+  margin-left: 8px;
+  vertical-align: middle;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+}
+
+/* color classes (fallback) */
+.badge-blue { background: linear-gradient(90deg,#4facfe,#00f2fe); }
+.badge-green { background: linear-gradient(90deg,#7be495,#2ad39a); }
+.badge-orange { background: linear-gradient(90deg,#ffb86b,#ff8a00); }
+.badge-red { background: linear-gradient(90deg,#ff7a7a,#ff4f4f); }
+.badge-purple { background: linear-gradient(90deg,#cda4ff,#7b61ff); }
+.badge-teal { background: linear-gradient(90deg,#58f0d9,#2bb5ff); }
+
+/* small styling improvements for cards */
+.home-square-card {
+  background: linear-gradient(180deg, #ffffff, #fbfbff);
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(10, 20, 40, 0.06);
+  min-height: 220px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  gap: 10px;
+}
+
+.info-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.sensor-name {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-size: 15px;
+  color: #333;
+  font-weight: 600;
+}
+
+/* sensor small secondary text (min-max label) */
+.sensor-sub {
+  font-size: 12px;
+  color: #666;
+  margin-left: 6px;
+}
+
+/* When no threshold found */
+.badge-empty {
+  background: #e0e0e0;
+  color: #666;
+}
+
+/* Responsive tweaks */
+@media (max-width: 600px) {
+  .home-square-card { min-height: 200px; padding: 12px; }
+}
+</style>
+
+</head>
+<body>
+  <div class="sidebar">
+    <div class="menu-items">
+      <h2>Dashboard</h2>
+      <ul>
+        <li onclick="loadHome()">Home</li>
+        <li onclick="loadCity('Delhi')">Delhi</li>
+        <li onclick="loadCity('Mumbai')">Mumbai</li>
+        <li onclick="loadCity('Hyderabad')">Hyderabad</li>
+        <li onclick="loadCity('Pune')">Pune</li>
+        <li onclick="loadAnalytics()">Analytics</li>
+      </ul>
+    </div>
+    <div class="logout-item">
+      <ul>
+        <li onclick="logoutUser()">Logout</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="main-content" id="main-content"></div>
+  <script>
+    // Make sidebar items selectable
+    const sidebarItems = document.querySelectorAll('.sidebar ul li');
+
+    sidebarItems.forEach(item => {
+        item.addEventListener('click', () => {
+            sidebarItems.forEach(i => i.classList.remove('active')); // remove active from all
+            item.classList.add('active'); // add active to clicked
+        });
+    });
+
+    // let chartBuffers = {};
+    // let charts = {};
+    let currentCitySocket = null;
+    let chartLabels = {};
+    async function loadHome() {
+  const container = document.getElementById("main-content");
+  container.innerHTML = `
+    <div style="display: flex; gap: 10px; align-items: center; padding: 10px; flex-wrap: wrap;">
+      <select id="citySelect" style="padding: 6px; font-size: 14px;">
+        <option value="">Select City</option>
+        <option value="delhi">Delhi</option>
+        <option value="mumbai">Mumbai</option>
+        <option value="pune">Pune</option>
+      </select>
+      <input type="date" id="startDate" style="padding: 6px; font-size: 14px;">
+      <input type="date" id="endDate" style="padding: 6px; font-size: 14px;">
+      <button id="exportBtn" style="padding: 8px 16px; font-size: 14px; cursor: pointer; background-color: #3498db; color: white; border: none; border-radius: 4px;">
+        📄 Export to CSV
+      </button>
+      <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" alt="Logo" style="height: 50px; width: auto; border-radius: 8px; margin-left: auto;" />
+    </div>
+
+    <!-- Sensor Connection Status -->
+    <div style="margin: 10px 0; padding: 8px; font-size: 18px; display:flex; gap:20px; align-items:center;">
+      <strong>Sensor Status:</strong>
+      <span>✅ Connected</span>
+      <span>❌ Disconnected</span>
+      <span style="display:inline-block; width:28px; height:28px; background:#3498db; border-radius:4px;"></span>
+      <span>Threshold value</span>
+
+    </div>
+
+    <div class="home-card-container" id="city-dashboard" style="margin-top: 10px; display:grid; grid-template-columns: repeat(auto-fit,minmax(260px,1fr)); gap: 16px;"></div>
+  `;
+
+  const cities = [
+    { name: "delhi", display: "Delhi", icon: "🏙️" },
+    { name: "mumbai", display: "Mumbai", icon: "🌆" },
+    { name: "hyderabad", display: "Hyderabad", icon: "🕌" },
+    { name: "pune", display: "Pune", icon: "🌇" }
+  ];
+
+  const sensors = [
+    { key: "sensor1", label: "CO2", icon: "🧪" },
+    { key: "sensor2", label: "NH3", icon: "🧪" },
+    { key: "sensor3", label: "SO2", icon: "🧪" },
+    { key: "sensor4", label: "H2S", icon: "🧪" },
+    { key: "temperature", label: "Temperature", icon: "🌡️" },
+    { key: "humidity", label: "Humidity", icon: "💧" }
+  ];
+
+  // JWT token
+  const token = sessionStorage.getItem("jwt") || localStorage.getItem("jwt");
+  if (!token) {
+    alert("You are not logged in or session expired.");
+    return;
+  }
+
+  // Fetch thresholds
+  let thresholdMap = {};
+  try {
+    const res = await fetch("https://api.neuronwise.in/nw-ui/get_thresholds", {
+      method: "GET",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + token }
+    });
+
+    if (res.status === 401) {
+      alert("Session expired. Please login again.");
+      sessionStorage.removeItem("jwt"); localStorage.removeItem("jwt");
+      window.location.href = "/login.html";
+      return;
+    }
+
+    if (!res.ok) throw new Error("Failed to fetch thresholds");
+
+    const thresholds = await res.json();
+    thresholds.forEach(t => {
+      if (t.sensor_name) thresholdMap[t.sensor_name.toLowerCase()] = t.max_value;
+    });
+  } catch (err) {
+    console.error("Failed to load thresholds:", err);
+  }
+
+  const wrapper = document.getElementById("city-dashboard");
+
+  cities.forEach(city => {
+    const card = document.createElement("div");
+    card.className = "home-square-card";
+
+    const sensorsHtml = sensors.map(sensor => {
+      const maxThreshold = thresholdMap[sensor.key.toLowerCase()] || "N/A";
+      return `
+        <div class='info-line' style="display:flex; justify-content:space-between; align-items:center;">
+          <!-- Left: icon - sensor name - max threshold -->
+          <div style="display:flex; gap:6px; align-items:center;">
+            <span style="font-size:18px;">${sensor.icon}</span>
+            <span>${sensor.label}-<span class="threshold-badge" style="background:#3498db; color:white; font-size:12px; padding:2px 6px; border-radius:4px;">${maxThreshold}</span></span>
+          </div>
+          <!-- Right: status -->
+          <div id="${city.name}-${sensor.key}-status" style="font-size:16px; font-weight:600; color:red;">❌</div>
+        </div>
+      `;
+    }).join("");
+
+    card.innerHTML = `
+      <h3 style="font-size: 20px; margin-bottom: 8px;">
+        ${city.icon} ${city.display}
+      </h3>
+      ${sensorsHtml}
+    `;
+
+    wrapper.appendChild(card);
+  });
+
+  // Export CSV button
+  document.getElementById("exportBtn").addEventListener("click", () => {
+    if (typeof exportCSV === "function") exportCSV();
+    else alert("Export function not found");
+  });
+
+  // Start live updates
+  if (typeof startHomeSocketLiveUpdates === "function") startHomeSocketLiveUpdates();
+}
+
+    async function exportCSV() {
+  const city = document.getElementById("citySelect")?.value || "";
+  const start = document.getElementById("startDate").value;
+  const end = document.getElementById("endDate").value;
+
+  if (!start || !end) {
+    alert("Please select a date range");
+    return;
+  }
+
+  try {
+    const token = sessionStorage.getItem("jwt") || localStorage.getItem("jwt"); // or localStorage.getItem("jwt")
+    if (!token) {
+        alert("You are not logged in or session expired.");
+        return;
+    }
+
+    const res = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`, {
+        method: "GET",
+        headers: {
+            "Authorization": "Bearer " + token, // <-- Pass JWT token here
+            "Content-Type": "application/json"
+        }
+    });
+    // const res = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`);
+    if (!res.ok) throw new Error("Failed to fetch data");
+
+    const allData = await res.json();
+
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    endDate.setHours(23, 59, 59, 999);
+
+    const filteredData = allData.filter(item => {
+      const readingDate = new Date(item.reading_time);
+      return readingDate >= startDate && readingDate <= endDate;
+    });
+
+    if (!filteredData.length) {
+      alert("No data found for the selected range");
+      return;
+    }
+
+    // ✅ Updated column mapping to match API keys
+    const columnMap = {
+      reading_time: "Timestamp",
+      sensor1: "CO2 (ppm)",
+      sensor2: "NH3 (ppm)",
+      sensor3: "SO2 (ppm)",
+      sensor4: "H2S (ppm)",
+      temperature: "Temperature (°C)",
+      humidity: "Humidity (%)"
+    };
+
+    const headers = Object.values(columnMap);
+    const keys = Object.keys(columnMap);
+
+    const csvRows = [];
+    csvRows.push(headers.join(",")); // header row
+
+    filteredData.forEach(row => {
+      const values = keys.map(k => {
+        let val = row[k];
+        if (val === null || val === undefined || val === "None") val = "";
+        return JSON.stringify(val);
+      });
+      csvRows.push(values.join(","));
+    });
+
+    const csvData = csvRows.join("\n");
+
+    const blob = new Blob([csvData], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${city || "all_cities"}_readings_${start}_to_${end}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+  } catch (err) {
+    console.error(err);
+    alert("Error exporting CSV");
+  }
+}
+
+
+
+     let cityLastUpdated = {
+  delhi: 0,
+  mumbai: 0,
+  hyderabad: 0,
+  pune: 0
+};
+
+function startHomeSocketLiveUpdates() {
+  const socket = io("https://api.neuronwise.in", { transports: ["websocket"] });
+
+  socket.on("connect", () => console.log("Connected to Home socket"));
+
+  socket.on("new_reading", (data) => {
+    const cities = ["delhi", "mumbai", "hyderabad", "pune"];
+    // const sensors = ["sensor1", "sensor2", "sensor3", "sensor4", "sensor5", "sensor6"];
+    const sensors = [
+     { name: "sensor1" },
+     { name: "sensor2" },
+     { name: "sensor3" },
+     { name: "sensor4" },
+     { name: "sensor5" }, // backend sends temp here
+     { name: "sensor6" }  // backend sends humidity here
+    ];
+
+
+    const now = Date.now();
+    cities.forEach(city => {
+      cityLastUpdated[city] = now;
+      sensors.forEach(sensor => {
+      const el = document.getElementById(`${city}-${sensor.name}-status`);
+        if (el) {
+          const value = data[sensor.name];
+          const isConnected = value !== null && value !== undefined;
+          el.textContent = isConnected ? "✅" : "❌";
+          el.style.color = isConnected ? "green" : "red";
+        }
+     });
+
+      // sensors.forEach(sensor => {
+      //   const el = document.getElementById(`${city}-${sensor}-status`);
+      //   if (el) {
+      //     const value = data[sensor];
+      //     const isConnected = value !== null && value !== undefined;
+      //     el.textContent = isConnected ? "✅" : "❌";
+      //     el.style.color = isConnected ? "green" : "red";
+      //   }
+      // });
+    });
+  });
+
+  socket.on("disconnect", () => console.warn("Disconnected from Home socket"));
+
+  // 🕒 Set an interval to check if a city hasn’t updated in 10 seconds
+  setInterval(() => {
+    const now = Date.now();
+    const timeout = 10 * 1000; // 10 seconds
+    const sensors = ["sensor1", "sensor2", "sensor3", "sensor4", "sensor5", "sensor6"];
+
+    for (const city in cityLastUpdated) {
+      if (now - cityLastUpdated[city] > timeout) {
+        sensors.forEach(sensor => {
+          const el = document.getElementById(`${city}-${sensor}-status`);
+          if (el) {
+            el.textContent = "❌";
+            el.style.color = "red";
+          }
+        });
+      }
+    }
+  }, 3000); // check every 3 seconds
+}
+
+    // function loadCity(city) {
+    //   const container = document.getElementById("main-content");
+    //   container.innerHTML = `<h2>${city} Sensors</h2><div class="card-container" id="sensor-cards"></div>`;
+    //   const sensors = ["sensor1", "sensor2", "sensor3", "sensor4"];
+    //   const wrapper = document.getElementById("sensor-cards");
+
+    //   sensors.forEach(sensor => {
+    //     const card = document.createElement("div");
+    //     card.className = "card";
+    //     card.innerHTML = `
+    //       <h3>${sensor}</h3>
+    //       <p>Current: <span id="${sensor}-value">--</span></p>
+    //       <div class="chart-wrapper"><canvas id="chart-${sensor}"></canvas></div>
+    //     `;
+    //     wrapper.appendChild(card);
+    //   });
+
+    //   startCitySocket(city);
+    // }
+    function initChartBuffer(city) {
+      if (!chartBuffers[city]) {
+        chartBuffers[city] = {
+          sensor1: [], sensor2: [], sensor3: [], sensor4: [],sensor5: [], sensor6: [], 
+          labels: []
+        };
+      }
+    }
+    function destroyCityCharts(city) {
+      const cityKey = city.toLowerCase();
+      ["sensor1", "sensor2", "sensor3", "sensor4","sensor5","sensor6"].forEach(sensor => {
+        const chartId = `${cityKey}-${sensor}`;
+        if (charts[chartId]) {
+          charts[chartId].destroy();
+          delete charts[chartId];
+        }
+      });
+    }
+let lastKnownReadings = {};
+let lastKnownStatus = {};
+const MAX_POINTS = 10;
+let chartPage = {}; // track current page per city
+let chartBuffers = {};
+let charts = {};
+
+async function loadCity(city) {
+  destroyCityCharts(city);
+  const container = document.getElementById("main-content");
+
+  container.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;flex-wrap:wrap;gap:10px;">
+      <h2 style="margin:0;white-space:nowrap;">City: ${city}</h2>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <input type="date" id="startDate">
+        <input type="date" id="endDate">
+        <button id="exportBtn" style="padding:5px 10px;">Export CSV</button>
+        <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" 
+             alt="Logo" style="height:40px;width:auto;object-fit:contain;cursor:pointer;">
+      </div>
+    </div>
+    <div class="card-container" id="sensor-cards" 
+      style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;"></div>
+    <div id="pagination" style="margin-top:15px;display:flex;justify-content:center;gap:10px;">
+      <button id="prevBtn">⬅ Prev</button>
+      <button id="nextBtn">Next ➡</button>
+    </div>
+  `;
+
+  const sensors = [
+    { name: "sensor1", label: "CO2", unit: "ppm" },
+    { name: "sensor2", label: "NH3", unit: "ppm" },
+    { name: "sensor3", label: "SO2", unit: "ppm" },
+    { name: "sensor4", label: "H2S", unit: "ppm" },
+    { name: "sensor5", label: "Temperature", unit: "°C" },
+    { name: "sensor6", label: "Humidity", unit: "%" }
+  ];
+
+  // Initialize lastKnownStatus
+  sensors.forEach(s => lastKnownStatus[s.name] = false);
+
+  // Cards
+  const wrapper = document.getElementById("sensor-cards");
+  sensors.forEach(sensor => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.style.minHeight = "200px";
+    card.innerHTML = `
+      <h3 style="margin:5px 0;display:flex;justify-content:space-between;align-items:center;">
+        ${sensor.label}
+        <span id="${sensor.name}-status" style="font-size:0.9em;color:red;">❌</span>
+      </h3>
+      <p style="margin:0;">Reading: <span id="${sensor.name}-value">--</span> ${sensor.unit}</p>
+      <div class="chart-wrapper" style="height:250px;">
+        <canvas id="chart-${sensor.name}"></canvas>
+      </div>
+    `;
+    wrapper.appendChild(card);
+  });
+
+  try {
+    const token = sessionStorage.getItem("jwt") || localStorage.getItem("jwt"); // or localStorage.getItem("jwt")
+    if (!token) {
+        alert("You are not logged in or session expired.");
+        return;
+    }
+
+    const res = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`, {
+        method: "GET",
+        headers: {
+            "Authorization": "Bearer " + token, // <-- Pass JWT token here
+            "Content-Type": "application/json"
+        }
+    });
+    // const res = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`);
+    const historyData = await res.json();
+
+    const cityKey = city.toLowerCase();
+    chartBuffers[cityKey] = { labels: [], allReadings: historyData };
+    sensors.forEach(s => (chartBuffers[cityKey][s.name] = []));
+
+    chartPage[cityKey] = Math.max(0, Math.floor(historyData.length / MAX_POINTS) - 1);
+
+    drawPage(cityKey, sensors);
+
+    // Export CSV
+    document.getElementById("exportBtn").addEventListener("click", async () => {
+      const start = document.getElementById("startDate").value;
+      const end = document.getElementById("endDate").value;
+      if (!start || !end) { alert("Please select a date range"); return; }
+      let data = await fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings`).then(r=>r.json());
+      data = data.filter(row => {
+        const rowDate = row.reading_time?.split("T")[0];
+        return rowDate >= start && rowDate <= end;
+      });
+      if (!data.length) { alert("No data found"); return; }
+
+      const columnMap = {
+        reading_time: "Timestamp",
+        sensor1: "CO2 (ppm)",
+        sensor2: "NH3 (ppm)",
+        sensor3: "SO2 (ppm)",
+        sensor4: "H2S (ppm)",
+        sensor5: "Temperature (°C)",
+        sensor6: "Humidity (%)"
+      };
+      const headers = Object.values(columnMap);
+      const keys = Object.keys(columnMap);
+      const csvRows = [headers.join(",")];
+      data.forEach(row => csvRows.push(keys.map(k => JSON.stringify(row[k] ?? "")).join(",")));
+
+      const blob = new Blob([csvRows.join("\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `sensor_readings_${start}_to_${end}.csv`;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+
+    // Pagination
+    document.getElementById("prevBtn").addEventListener("click", () => {
+      if (chartPage[cityKey] > 0) { chartPage[cityKey]--; drawPage(cityKey, sensors); }
+    });
+    document.getElementById("nextBtn").addEventListener("click", () => {
+      if ((chartPage[cityKey]+1)*MAX_POINTS < chartBuffers[cityKey].allReadings.length) { chartPage[cityKey]++; drawPage(cityKey, sensors); }
+    });
+
+    // Live updates
+    startCitySocket(city, sensors);
+
+  } catch (err) { console.error("Error fetching historical data:", err); }
+}
+// -----------------------------
+// Socket live update
+// -----------------------------
+    function startCitySocket(city, sensors) {
+  const cityKey = city.toLowerCase();
+  const socket = io("https://api.neuronwise.in/", { transports: ["websocket"] });
+
+  socket.on("connect", () => {
+    console.log(`Connected to ${city} socket`);
+    sensors.forEach(s => updateSensorStatus(s.name, true));
+  });
+
+  socket.on("disconnect", () => {
+    console.warn(`Socket disconnected: ${city}`);
+    sensors.forEach(s => updateSensorStatus(s.name, false));
+  });
+
+  const SENSOR_TIMEOUT = 10000;
+  let lastReadingTime = {};
+  setInterval(() => {
+    const now = Date.now();
+    sensors.forEach(s => {
+      if (!lastReadingTime[s.name] || now - lastReadingTime[s.name] > SENSOR_TIMEOUT) {
+        updateSensorStatus(s.name, false);
+      }
+    });
+  }, 2000);
+  socket.on("new_reading", (data) => {
+    sensors.forEach(s => {
+      let value;
+      switch(s.name){
+        case "sensor5": value = data.sensor5 ?? data.temperature; break;
+        case "sensor6": value = data.sensor6 ?? data.humidity; break;
+        default: value = data[s.name];
+      }
+
+      lastKnownReadings[s.name] = value ?? lastKnownReadings[s.name] ?? "--";
+      const connected = value !== undefined && value !== null;
+      lastKnownStatus[s.name] = connected;
+
+      updateSensorValue(s.name, lastKnownReadings[s.name]);
+      updateSensorStatus(s.name, connected);
+
+      lastReadingTime[s.name] = Date.now();
+    });
+
+    // Keep only last MAX_POINTS for live chart
+    chartBuffers[cityKey].allReadings.push(data);
+    if(chartBuffers[cityKey].allReadings.length > MAX_POINTS) {
+      chartBuffers[cityKey].allReadings.shift();
+    }
+
+    drawPage(cityKey, sensors, true); // update charts only, DOM already updated
+  });
+}
+
+function drawPage(cityKey, sensors, skipDomUpdate = false) {
+  const buffer = chartBuffers[cityKey];
+  const pageReadings = buffer.allReadings.slice(-MAX_POINTS); // always last MAX_POINTS readings
+
+  buffer.labels = [];
+  sensors.forEach(s => (buffer[s.name] = []));
+
+  pageReadings.forEach(row => {
+    const time = formatTime(row.reading_time);
+    buffer.labels.push(time);
+
+    sensors.forEach(s => {
+      let value;
+      switch(s.name){
+        case "sensor5": value = row.sensor5 ?? row.temperature; break;
+        case "sensor6": value = row.sensor6 ?? row.humidity; break;
+        default: value = row[s.name];
+      }
+
+      buffer[s.name].push(value ?? null);
+
+      if(!skipDomUpdate){
+        const valEl = document.getElementById(`${s.name}-value`);
+        if(valEl) valEl.textContent = value ?? "--";
+      }
+    });
+  });
+
+  sensors.forEach(sensor => {
+    const ctx = document.getElementById(`chart-${sensor.name}`);
+    const chartId = `${cityKey}-${sensor.name}`;
+    if(!charts[chartId]){
+      charts[chartId] = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [...buffer.labels],
+          datasets:[{
+            label: sensor.label,
+            data: [...buffer[sensor.name]],
+            borderColor: "#1abc9c",
+            fill:false,
+            tension:0.3,
+            pointStyle:"circle",
+            pointRadius:4,
+            pointHoverRadius:5,
+            pointBackgroundColor:"#1abc9c",
+            pointBorderWidth:0
+          }]
+        },
+        options: {
+          scales: { x:{ticks:{maxTicksLimit:6}}, y:{beginAtZero:true,title:{display:true,text:"Value"}} },
+          plugins: { legend:{display:false} },
+          responsive:true,
+          maintainAspectRatio:false
+        }
+      });
+    } else {
+      const chart = charts[chartId];
+      chart.data.labels = [...buffer.labels];
+      chart.data.datasets[0].data = [...buffer[sensor.name]];
+      chart.update();
+    }
+  });
+}
+
+
+// -----------------------------
+// Helper functions (unchanged)
+// -----------------------------
+function updateSensorValue(sensorName, value) {
+  const el = document.getElementById(`${sensorName}-value`);
+  if (el) el.textContent = value ?? "--";
+}
+function updateSensorStatus(sensorName, connected) {
+  const statusEl = document.getElementById(`${sensorName}-status`);
+  if (statusEl) {
+    statusEl.textContent = connected ? "✅" : "❌";
+    statusEl.style.color = connected ? "green" : "red";
+  }
+}
+
+function loadAnalytics() {
+  const GREEN = "#2ecc71"; // one color for all charts
+
+  document.getElementById("main-content").innerHTML = `
+    <div style="position: relative; padding-top: 10px; margin-bottom:20px;">
+      <!-- ✅ Logo positioned a bit higher -->
+      <img src="https://s3.ap-south-1.amazonaws.com/neuronwise.in/logo_4_NW.png" alt="Logo" 
+           style="position: absolute; top: -10px; right: 0; height: 70px; width: auto; object-fit: contain;" />
+
+      <!-- ✅ City Selector -->
+      <div style="margin-bottom: 15px;">
+        <label for="city-select" style="font-weight:600; margin-right:8px;">Select City:</label>
+        <select id="city-select" style="padding:5px 10px; border-radius:6px; border:1px solid #ccc;">
+          <option value="default">-- Choose City --</option>
+          <option value="delhi">Delhi</option>
+          <option value="mumbai">Mumbai</option>
+          <option value="bangalore">Bangalore</option>
+          <option value="chennai">Chennai</option>
+        </select>
+      </div>
+
+      <h2 style="margin-top: 0;">Analytics</h2>
+      <p id="loading">Loading data...</p>
+
+      <!-- ✅ exactly 3 cards per row -->
+      <div id="analytics-cards" style="
+           display:grid;
+           grid-template-columns:repeat(3,minmax(0,1fr));
+           gap:15px;
+           align-items:stretch;"></div>
+    </div>
+  `;
+
+  // ✅ Add listener for city selector
+  document.getElementById("city-select").addEventListener("change", (e) => {
+    const city = e.target.value;
+    if (city === "default") return;
+
+    // Clear old charts
+    document.getElementById("analytics-cards").innerHTML = `<p id="loading">Loading data for ${city}...</p>`;
+
+    // Example: update API call with selected city
+    // fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings?city=${city}`)
+    //   .then(r => r.json())
+    //   .then(data => renderCharts(data))
+    //   .catch(error => {
+    //     console.error("Failed to load analytics:", error);
+    //     document.getElementById("analytics-cards").innerHTML += `<p>Error loading data.</p>`;
+    //   });
+    // Get JWT token from sessionStorage or localStorage
+    const token = sessionStorage.getItem("jwt") || localStorage.getItem("jwt");
+
+    if (!token) {
+        alert("You are not logged in or session expired.");
+        return;
+    }
+
+    // Example: update API call with selected city
+    fetch(`https://api.neuronwise.in/nw-ui/get_sensor_readings?city=${city}`, {
+        method: "GET",
+        headers: {
+            "Content-Type": "application/json",
+            "Authorization": "Bearer " + token  // <-- pass JWT token here
+        }
+    })
+     .then(r => {
+    if (!r.ok) throw new Error("Failed to load analytics");
+        return r.json();
+    })
+    .then(data => renderCharts(data))
+    .catch(error => {
+        console.error("Failed to load analytics:", error);
+        document.getElementById("analytics-cards").innerHTML += `<p>Error loading data.</p>`;
+    });
+
+  });
+
+  // ✅ Separate function for rendering charts
+  function renderCharts(data) {
+    const loading = document.getElementById("loading");
+    if (loading) loading.remove();
+
+    if (!Array.isArray(data) || data.length === 0) {
+      document.getElementById("analytics-cards").innerHTML += "<p>No data available</p>";
+      return;
+    }
+
+    const allReadings = data;
+
+    const sensors = [
+      { key: "sensor1", label: "CO2 (ppm)" },
+      { key: "sensor2", label: "NH3 (ppm)" },
+      { key: "sensor3", label: "SO2 (ppm)" },
+      { key: "sensor4", label: "H2S (ppm)" },
+      { key: "temperature", label: "Temperature (°C)" },
+      { key: "humidity", label: "Humidity (%)" }
+    ];
+
+    const container = document.getElementById("analytics-cards");
+    container.innerHTML = ""; // clear old charts
+
+    sensors.forEach(sensor => {
+      const labels = allReadings.map((r, i) => {
+        const ts = r.reading_time ?? "";
+        if (typeof ts === "string") {
+          const splitT = ts.split("T");
+          const splitSpace = ts.split(" ");
+          const timePart = (splitT[1] || splitSpace[1] || ts).slice(0, 8);
+          return timePart || `#${i + 1}`;
+        }
+        return `#${i + 1}`;
+      });
+
+      const values = allReadings.map(r => (r[sensor.key] ?? null));
+
+      const card = document.createElement("div");
+      card.className = "sensor-card";
+      card.style.cssText = `
+        background:#fff;
+        border-radius:12px;
+        box-shadow:0 2px 6px rgba(0,0,0,0.1);
+        padding:12px;
+        display:flex;
+        flex-direction:column;
+      `;
+
+      card.innerHTML = `
+        <h3 style="margin:6px 0 10px;text-align:center;font-size:16px;">${sensor.label}</h3>
+        <div style="height:250px;"><canvas id="chart-${sensor.key}"></canvas></div>
+      `;
+      container.appendChild(card);
+
+      const ctx = document.getElementById(`chart-${sensor.key}`);
+      const chart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{
+            label: sensor.label,
+            data: values,
+            borderColor: GREEN,
+            backgroundColor: GREEN,
+            fill: false,
+            tension: 0.3,
+            pointStyle: "circle",
+            pointRadius: 3,
+            pointHoverRadius: 5,
+            pointBackgroundColor: GREEN,
+            pointBorderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          animation: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: true, mode: "nearest", intersect: false },
+            zoom: {
+              pan: { enabled: true, mode: "x" },
+              zoom: { wheel: { enabled: true }, pinch: { enabled: true }, mode: "x" }
+            }
+          },
+          interaction: { mode: "nearest", axis: "x", intersect: false },
+          scales: {
+            x: { ticks: { maxRotation: 0, autoSkip: true } },
+            y: { beginAtZero: true }
+          }
+        }
+      });
+
+      // ✅ Auto-scroll last 10 readings
+      const total = labels.length;
+      if (total > 10) {
+        chart.options.scales.x.min = total - 10;
+        chart.options.scales.x.max = total;
+        chart.update();
+      }
+    });
+  }
+}
+function logoutUser() {
+    console.log("Logging out user");
+    // Clear JWT token from storage
+    sessionStorage.removeItem("jwt"); 
+    localStorage.removeItem("jwt");
+    // Redirect to login page
+    window.location.href = "https://api.neuronwise.in/nw-ui/nw_analytics_login";
+}
+    function formatTime(str) {
+       const parts = str.split(" ");
+       const time = parts[1] || "";
+       return time.slice(0, 5); // returns "HH:mm"
+    }
+
+    window.onload = loadHome;
+  </script>
+</body>
+</html>

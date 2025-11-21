@@ -30,7 +30,6 @@ flask-smorest==0.43.0
 fonttools==4.51.0
 frozenlist==1.4.1
 fsspec==2024.2.0
-gevent==24.2.1
 google==3.0.0
 google-api-core==2.18.0
 google-api-python-client==2.127.0
@@ -85,5 +84,9 @@ pydantic==2.6.1
 psycopg2-binary
 tokenizers==0.13.3
 transformers==4.36.2
-gevent==22.10.2
+flask
+flask-socketio
+python-socketio
+python-engineio
+eventlet     # works on Python 3.13
 
